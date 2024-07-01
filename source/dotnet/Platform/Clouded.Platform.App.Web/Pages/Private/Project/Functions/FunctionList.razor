@@ -1,0 +1,138 @@
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/functions"
+@inject IDbContextResolver DbContextResolver
+@inject IFunctionProviderService FunctionProviderService
+@inject IDialogService DialogService
+@inject IStorageService StorageService
+@inject ISnackbar Snackbar
+
+<PageTitle>@Project.Name | Function providers</PageTitle>
+
+<div class="d-flex justify-space-between align-baseline">
+    <MudText Class="pb-8" Typo="Typo.h2">Function providers</MudText>
+    <MudButton
+        Href="@($"/projects/{ProjectId}/functions/create")"
+        StartIcon="@Icons.Material.Filled.Add"
+        Variant="Variant.Filled"
+        Color="Color.Tertiary">
+        Add function provider
+    </MudButton>
+</div>
+
+<MudGrid>
+    @foreach (var entity in _providerEntities)
+    {
+        <MudItem xs="6">
+            <Tile Icon="@Icons.Material.Filled.DataObject" Title="@entity.Name">
+                <TitleAction>
+                    <MudChip Class="mud-secondary">
+                        <MudText Typo="Typo.body2" Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">
+                            @entity.Code
+                        </MudText>
+                    </MudChip>
+                </TitleAction>
+                <Content>
+                    <div class="d-flex flex-column gap-4 pa-2">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Name:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @entity.Name
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Repository:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @entity.Configuration.RepositoryType
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Count of hooks:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @entity.Functions.Count
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                </Content>
+                <Actions>
+                    <MudTooltip Arrow="true" Text="Delete">
+                        <MudIconButton
+                            Class="ml-auto"
+                            Icon="@Icons.Material.Filled.Delete"
+                            Color="Color.Secondary"
+                            Size="Size.Medium"
+                            Variant="Variant.Filled"
+                            OnClick="@(() => HandleRemoveClick(entity))"/>
+                    </MudTooltip>
+                    <MudButton Class="ml-auto"
+                               Variant="Variant.Filled"
+                               Color="Color.Tertiary"
+                               HtmlTag="a"
+                               Href="@FunctionProviderService.GetDetailRoute(ProjectId, entity.Id)"
+                               EndIcon="@Icons.Material.Filled.ChevronRight">
+                        Show detail
+                    </MudButton>
+                </Actions>
+            </Tile>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private CloudedDbContext _context = null!;
+
+    private List<FunctionProviderEntity> _providerEntities = new();
+
+    private HubConnection? _providerHub;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _context = DbContextResolver.UseScopedContext<CloudedDbContext>();
+
+        _providerEntities = await _context
+            .GetAll<FunctionProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .ToListAsync(CancellationToken);
+
+        _providerHub = FunctionProviderService.GetProviderHub(StorageService);
+
+        await _providerHub.StartAsync();
+    }
+
+    private async Task HandleRemoveClick(FunctionProviderEntity entity)
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await FunctionProviderService.DeleteAsync(entity, _providerHub!, Snackbar, cancellationToken: CancellationToken);
+            _providerEntities.RemoveAll(x => x.Id == entity.Id);
+            Snackbar.Add("Deleted", Severity.Success);
+        }
+    }
+
+}

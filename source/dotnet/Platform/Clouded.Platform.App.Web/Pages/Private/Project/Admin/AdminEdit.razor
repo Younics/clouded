@@ -1,0 +1,101 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using AutoMapper
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Models.Dtos.Hub
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Shared
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/admin_panels/{AdminProviderId}/edit"
+@inject IDbContextResolver DbContextResolver
+@inject IAdminProviderService AdminProviderService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IMapper Mapper
+@inject ApplicationOptions ApplicationOptions
+@inject IStorageService StorageService
+
+<PageTitle>@Project.Name | Admin panel - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <AdminForm ProviderHub="_providerHub" IsCreate="@false" Readonly="@false" Title="Admin panel: " Model="@Input" ProjectId="@ProjectId" OnValidSubmit="@OnValidSubmit"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string AdminProviderId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private AdminProviderInput? Input { get; set; }
+
+    private HubConnection _providerHub = null!;
+    private CloudedDbContext _dbContext = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver
+            .MakeContext<CloudedDbContext>();
+        
+        var adminProviderEntity = await _dbContext
+            .GetAsync<AdminProviderEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(AdminProviderId),
+                CancellationToken
+            );
+
+
+        if (adminProviderEntity != null)
+        {
+            var input = Mapper.Map<AdminProviderInput>(adminProviderEntity);
+            input.UserAccess = input.UserAccess.Select(usr =>
+            {
+                usr.Password = usr.Password.Decrypt(ApplicationOptions.Clouded.Database.CloudedConnection.EncryptionKey);
+                return usr;
+            }).ToList();
+
+            input.NavGroups = input.NavGroups.OrderBy(x => x.Order);
+            Input = input;
+
+    //todo handle connection exception
+            _providerHub = AdminProviderService.GetProviderHub(StorageService);
+
+            _providerHub.On<HubProviderProcessingOutput>
+                (
+                    nameof(HubProviderProcessingOutput),
+                    output =>
+                    {
+                        InvokeAsync(StateHasChanged);
+                        if (!output.Success)
+                        {
+                            Snackbar.Add(output.ErrorMessage, Severity.Error);
+                            NavigationManager.NavigateTo(AdminProviderService.GetDetailRoute(ProjectId, Input.Id));
+                            return;
+                        }
+
+                        if (adminProviderEntity?.Id != output.Id) return;
+
+                        Snackbar.Add(output.SuccessMessage, Severity.Success);
+                        NavigationManager.NavigateTo(AdminProviderService.GetDetailRoute(ProjectId, Input.Id));
+                    }
+                );
+
+            await _providerHub.StartAsync();
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+        await AdminProviderService.UpdateAsync(Input, cancellationToken: CancellationToken);
+
+        Snackbar.Add("Admin panel updated", Severity.Success);
+        
+        NavigationManager.NavigateTo(AdminProviderService.GetDetailRoute(ProjectId, Input.Id));
+    }
+}

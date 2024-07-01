@@ -1,0 +1,224 @@
+@using Clouded.Auth.Provider.Options
+@using Clouded.Shared
+@using System.Reflection
+@inherits LayoutComponentBase
+@inject ApplicationOptions Options
+@inject IManagementAuthService ManagementAuthService
+@inject NavigationManager NavigationManager
+
+<MudLayout>
+    <MudAppBar Elevation="0">
+        <MudBreadcrumbs Class="rounded mud-background mud-elevation-1 py-0" Items="_items" Separator=">"></MudBreadcrumbs>
+        <MudSpacer/>
+        <MudFab
+            Class="mr-2"
+            Size="Size.Small"
+            Color="Color.Secondary"
+            StartIcon="@Icons.Material.Filled.Settings"/>
+        <MudFab
+            Size="Size.Small"
+            Color="Color.Secondary"
+            StartIcon="@Icons.Material.Filled.Logout"
+            OnClick="@(_ => Logout())"/>
+
+    </MudAppBar>
+
+    <MudDrawer
+        @bind-Open="_drawerOpen"
+        Color="Color.Transparent"
+        Variant="DrawerVariant.Mini"
+        Elevation="0"
+        OpenMiniOnHover="false">
+        <div Class="relative rounded mud-elevation-2" Style="background: black; height: calc(100% - 16px - 32px); margin: 16px 0 19px 24px">
+            <MudDrawerHeader Class="d-flex justify-center">
+                <img width="120" alt="logo" src="images/logo.png" class="fixed object-cover"/>
+            </MudDrawerHeader>
+            <div Class="pt-4 pb-12" style="height: 100px">
+                @if (_drawerOpen)
+                {
+                    <MudText Style="white-space: nowrap" Color="Color.Secondary" Align="Align.Center">@Options.Clouded.Auth.Name</MudText>
+                }
+            </div>
+
+
+            <div Style="position: absolute; bottom: 80px; right: 6px">
+                <MudIconButton
+                    Color="Color.Secondary"
+                    Variant="Variant.Filled"
+                    DisableRipple="true"
+                    Class="fixed mud-elevation-7"
+                    Icon="@(_drawerOpen ? Icons.Material.Filled.KeyboardArrowLeft : Icons.Material.Filled.KeyboardArrowRight)"
+                    Edge="Edge.Start"
+                    OnClick="@(_ => DrawerToggle())"/>
+            </div>
+
+            <MudNavMenu
+                Class="mud-secondary-text"
+                Bordered="true"
+                Color="Color.Primary"
+                Style="padding-left: 3px">
+                <MudNavGroup
+                    Class="pb-6"
+                    Title="Applications"
+                    Icon="@Icons.Material.Filled.Apps"
+                    IconColor="Color.Inherit"
+                    Expanded="true">
+                    <MudNavLink
+                        IconColor="Color.Inherit"
+                        Href="/management/domains"
+                        Match="NavLinkMatch.Prefix"
+                        Icon="@Icons.Material.Filled.TravelExplore">
+                        Domains
+                    </MudNavLink>
+
+                    @if (Options.Clouded.Auth.Identity.Machine != null)
+                    {
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="/management/machines"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.Api">
+                            Machines
+                        </MudNavLink>
+                    }
+                </MudNavGroup>
+
+                <MudNavGroup
+                    Title="Management"
+                    Icon="@Icons.Material.Filled.ManageAccounts"
+                    IconColor="Color.Inherit"
+                    Expanded="true">
+                    @if (Options.Clouded.Auth.Identity.Organization != null)
+                    {
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="/management/organizations"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.GroupWork">
+                            Organizations
+                        </MudNavLink>
+                    }
+                    <MudNavLink
+                        IconColor="Color.Inherit"
+                        Href="/management/users"
+                        Match="NavLinkMatch.Prefix"
+                        Icon="@Icons.Material.Filled.People">
+                        Users
+                    </MudNavLink>
+
+                    @if (Options.Clouded.Auth.Identity.Role != null)
+                    {
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="/management/roles"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.AdminPanelSettings">
+                            Roles
+                        </MudNavLink>
+                    }
+
+                    @if (Options.Clouded.Auth.Identity.Permission != null)
+                    {
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="/management/permissions"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.AdminPanelSettings">
+                            Permissions
+                        </MudNavLink>
+                    }
+                </MudNavGroup>
+            </MudNavMenu>
+        </div>
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.False" Class="pa-8" Style="min-height: calc(100vh - var(--mud-appbar-height))">
+            <ErrorBoundary @ref="errorBoundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent>
+                    <MudAlert Severity="Severity.Error">
+                        An error has occurred. This application may no longer respond until reloaded.
+                    </MudAlert>
+                </ErrorContent>
+            </ErrorBoundary>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private ErrorBoundary? errorBoundary;
+    private Dictionary<string, string> _icons;
+
+    private List<BreadcrumbItem> _items = new()
+    {
+        new BreadcrumbItem("", href: "#", icon: Icons.Material.Filled.Home)
+    };
+
+    private bool _drawerOpen = true;
+
+    protected override void OnInitialized()
+    {
+        _icons = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(fi => fi.IsLiteral && !fi.IsInitOnly)
+            .Select(x => (new
+            {
+                key = x.Name,
+                value = (string)x.GetRawConstantValue()!
+            }))
+            .ToDictionary(x => x.key, x => x.value);
+    }
+
+    protected override void OnParametersSet()
+    {
+        errorBoundary?.Recover();
+
+        BuildBreadcrumbs();
+    }
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private void BuildBreadcrumbs()
+    {
+        var route = NavigationManager.Uri;
+        var basePath = route.Split("management/")[0] + "management";
+        var path = route.Split("management/")[1];
+        var segments = path.Split("/");
+
+        _items = _items.Where(i => i.Href == "#").ToList();
+        var walkthrough = new List<string> { basePath };
+        foreach (var segment in segments)
+        {
+            walkthrough.Add(segment);
+            var currentUri = string.Join("/", walkthrough);
+            var actionInfo = segment.Split("?");
+            var action = actionInfo[0];
+
+            var title = $"{action.Capitalize()}";
+            if (actionInfo.Length > 1)
+            {
+                var identifiers = actionInfo[1].Split("=");
+                var identifier = string.Join(": ", identifiers);
+                title = $"{action.Capitalize()} {identifier}";
+            }
+
+            var icon = action == "detail" ?
+                _icons.GetValueOrDefault("Info") :
+                _icons!.GetValueOrDefault(action.Capitalize());
+
+            _items.Add(new BreadcrumbItem(title, href: currentUri, icon: icon));
+        }
+    }
+
+    private async Task Logout()
+    {
+        await ManagementAuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+
+}

@@ -1,0 +1,50 @@
+@using System.ComponentModel.DataAnnotations
+@using Clouded.Platform.Models.Enums
+
+<MudStack Row="@false">
+    <MudItem>
+        <MudChip Size="Size.Small" Color="Color" Text="@Status.ToString()"/>
+    </MudItem>
+
+    @if (DomainAddress != null && Status == EProviderStatus.Running)
+    {
+        <MudLink Href="@DomainAddress" Target="_blank">@DomainAddress</MudLink>
+    }
+</MudStack>
+
+@code {
+
+    [Required]
+    [Parameter]
+    public EProviderStatus Status { get; set; }
+
+    [Parameter]
+    public string? DomainAddress { get; set; }
+
+    private Color Color { get; set; } = Color.Default;
+
+    protected override void OnParametersSet()
+    {
+        switch (Status)
+        {
+            case EProviderStatus.Starting:
+            case EProviderStatus.Building:
+                Color = Color.Info;
+                break;
+            case EProviderStatus.Running:
+                Color = Color.Success;
+                break;
+            case EProviderStatus.Stopping:
+            case EProviderStatus.Terminating:
+                Color = Color.Warning;
+                break;
+            case EProviderStatus.Stopped:
+                Color = Color.Dark;
+                break;
+            case EProviderStatus.Terminated:
+                Color = Color.Error;
+                break;
+        }
+    }
+
+}

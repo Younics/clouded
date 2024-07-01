@@ -1,0 +1,76 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Shared
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/datasources/{DataSourceId}"
+@inject IDbContextResolver DbContextResolver
+@inject IDataSourceService DataSourceService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject ApplicationOptions Options
+
+<PageTitle>@Project.Name | Datasources - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <DataSourceForm Title="Datasource detail" Model="@Input" OnValidSubmit="@OnValidSubmit" ProjectId="@ProjectId"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+    
+    [Parameter]
+    public string DataSourceId { get; set; } = null!;
+    
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private DataSourceInput? Input { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dataSourceEntity = await DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAsync<DataSourceEntity>
+            (
+                entity => 
+                    entity.Id == long.Parse(DataSourceId),
+                CancellationToken
+            );
+
+        if (dataSourceEntity != null)
+        {
+            Input = new DataSourceInput
+            {
+                Id = dataSourceEntity.Id,
+                Name = dataSourceEntity.Name,
+                ProjectId = dataSourceEntity.ProjectId,
+                Username = dataSourceEntity.Configuration.Username.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey),
+                Password = dataSourceEntity.Configuration.Password.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey),
+                Server = dataSourceEntity.Configuration.Server.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey),
+                Port = dataSourceEntity.Configuration.Port,
+                Database = dataSourceEntity.Configuration.Database.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey),
+                Type = dataSourceEntity.Configuration.Type,
+            };
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+        var dataSource = await DataSourceService.UpdateAsync(Input, cancellationToken: CancellationToken);
+
+        //TODO: error handling
+        
+        // if (dataSource.Id != null)
+        // {
+        Snackbar.Add("Dobre je", Severity.Success);
+        NavigationManager.NavigateTo($"/projects/{ProjectId}/datasources");
+        // }
+        // else
+        // {
+        //     Snackbar.Add("Daco se pokazilo");
+        // }
+    }
+}

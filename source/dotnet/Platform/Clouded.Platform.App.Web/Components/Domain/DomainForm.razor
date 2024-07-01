@@ -1,0 +1,194 @@
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+@inject ISnackbar SnackbarService
+@inject IDomainService DomainService
+@inject IDbContextResolver DbContextResolver
+
+<EditForm
+    @ref="@_formRef"
+    @bind-IsValid="@_isValid"
+    ValidationDelay="300"
+    OnValidSubmit="OnValidSubmit"
+    Model="@Model">
+
+    <FluentValidationValidator @ref="_fluentValidationValidator"/>
+
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudStack Class="" Row="@true">
+                <MudText Class="flex-grow-1" Typo="Typo.h2">@Title</MudText>
+            </MudStack>
+        </MudItem>
+
+        <MudItem Class="d-flex justify-space-between" xs="12">
+            @if (!Readonly)
+            {
+                <MudButton
+                    HtmlTag="a"
+                    Href="@(DomainService.GetDetailRoute(ProjectId, Model.Id))"
+                    StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                    Variant="Variant.Filled"
+                    Color="Color.Secondary">
+                    Cancel
+                </MudButton>
+            }
+            else
+            {
+                <MudButton
+                    HtmlTag="a"
+                    Href="@(DomainService.GetListRoute(ProjectId))"
+                    StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                    Variant="Variant.Filled"
+                    Color="Color.Secondary">
+                    Cancel
+                </MudButton>
+            }
+
+
+            <div class="d-flex gap-2 ml-auto">
+                @if (!Readonly)
+                {
+                    <MudButton
+                        ButtonType="ButtonType.Submit"
+                        Color="Color.Tertiary"
+                        StartIcon="@Icons.Material.Filled.Check"
+                        Variant="Variant.Filled">
+                        @(Model.Id == null ? "Create" : "Save")
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton
+                        OnClick="@HandleRemoveClick"
+                        Color="Color.Secondary"
+                        StartIcon="@Icons.Material.Filled.Delete"
+                        Variant="Variant.Filled">
+                        Delete
+                    </MudButton>
+                    <MudButton
+                        HtmlTag="a"
+                        Href="@(DomainService.GetEditRoute(ProjectId, Model.Id))"
+                        Color="Color.Tertiary"
+                        StartIcon="@Icons.Material.Filled.Edit"
+                        Variant="Variant.Filled">
+                        Edit
+                    </MudButton>
+                }
+            </div>
+        </MudItem>
+        <MudItem sm="12" md="6">
+            <Tile Icon="@Icons.Material.Filled.Info" Title="Basic configuration">
+                <Content>
+                    <div class="d-flex flex-column gap-2">
+                        <MudTextField
+                            ReadOnly="Readonly"
+                            T="string?"
+                            Immediate="true"
+                            @bind-Value="Model.Value"
+                            For="@(() => Model.Value)"
+                            Label="Address"
+                            Required="true"
+                            Variant="Variant.Outlined"/>
+                    </div>
+
+                    @* todo test DNS records *@
+                </Content>
+            </Tile>
+        </MudItem>
+
+        <MudItem Class="d-flex justify-space-between" xs="12">
+            @if (!Readonly)
+            {
+                <MudButton
+                    HtmlTag="a"
+                    Href="@(DomainService.GetDetailRoute(ProjectId, Model.Id))"
+                    StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                    Variant="Variant.Filled"
+                    Color="Color.Secondary">
+                    Cancel
+                </MudButton>
+            }
+            else
+            {
+                <MudButton
+                    HtmlTag="a"
+                    Href="@(DomainService.GetListRoute(ProjectId))"
+                    StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                    Variant="Variant.Filled"
+                    Color="Color.Secondary">
+                    Cancel
+                </MudButton>
+            }
+
+
+            <div class="d-flex gap-2 ml-auto">
+                @if (!Readonly)
+                {
+                    <MudButton
+                        ButtonType="ButtonType.Submit"
+                        Color="Color.Tertiary"
+                        StartIcon="@Icons.Material.Filled.Check"
+                        Variant="Variant.Filled">
+                        @(Model.Id == null ? "Create" : "Save")
+                    </MudButton>
+                }
+                else
+                {
+                    <MudButton
+                        OnClick="@HandleRemoveClick"
+                        Color="Color.Secondary"
+                        StartIcon="@Icons.Material.Filled.Delete"
+                        Variant="Variant.Filled">
+                        Delete
+                    </MudButton>
+                    <MudButton
+                        HtmlTag="a"
+                        Href="@(DomainService.GetEditRoute(ProjectId, Model.Id))"
+                        Color="Color.Tertiary"
+                        StartIcon="@Icons.Material.Filled.Edit"
+                        Variant="Variant.Filled">
+                        Edit
+                    </MudButton>
+                }
+            </div>
+        </MudItem>
+    </MudGrid>
+</EditForm>
+
+
+@code {
+
+    [Parameter, EditorRequired] public string ProjectId { get; set; } = null!;
+
+    [Parameter] public string Title { get; set; } = null!;
+
+    [Parameter, EditorRequired] public DomainInput? Model { get; set; }
+
+    [Parameter, EditorRequired] public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter] public bool Readonly { get; set; } = true;
+
+    private EditForm _formRef = null!;
+    private bool _isValid = true;
+    private FluentValidationValidator? _fluentValidationValidator;
+
+    private async Task HandleRemoveClick()
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+            var domain = await dbContext
+                .GetAsync<DomainEntity>(x => x.Id == Model.Id);
+
+            await DomainService.DeleteAsync(domain);
+            SnackbarService.Add("Deleted", Severity.Success);
+            NavigationManager.NavigateTo(DomainService.GetListRoute(ProjectId));
+        }
+    }
+
+}

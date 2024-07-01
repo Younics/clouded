@@ -1,0 +1,54 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/authentications/create"
+@inject ApplicationOptions ApplicationOptions
+@inject IDbContextResolver DbContextResolver
+@inject IStorageService StorageService
+@inject IAuthProviderService AuthProviderService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>@Project.Name | Authentication Provider - Create</PageTitle>
+
+<AuthForm Readonly="@false" Title="Create new Authentication Provider" Model="_input" ProjectId="@ProjectId" OnValidSubmit="OnValidSubmit"/>
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private HubConnection _providerHub = null!;
+    private readonly AuthProviderInput _input = new();
+    private AuthProviderEntity? _authProvider;
+
+    private bool _processing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _input.ProjectId = Project.Id;
+        _input.CodePrefix = $"{Project.Code}-auth-";
+    }
+
+    private async Task OnValidSubmit()
+    {
+        _processing = true;
+        _authProvider = await AuthProviderService.CreateAsync(_input, cancellationToken: CancellationToken);
+
+        _processing = false;
+
+        if (_authProvider == null)
+        {
+            Snackbar.Add("There was an error creating Auth provider", Severity.Error);
+        }
+        else
+        {
+            Snackbar.Add("Auth provider created", Severity.Success);
+            Snackbar.Add("Please finish configuration in following form", Severity.Success);
+            NavigationManager.NavigateTo(AuthProviderService.GetEditRoute(ProjectId, _authProvider.Id));
+        }
+    }
+}

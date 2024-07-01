@@ -1,0 +1,119 @@
+@inherits EntityConfig
+@if (Model.DataSourceProviderId == null)
+{
+    <MudStack Class="border-dashed border-2 mud-border-dark pa-16 rounded-xl" Row="@false" Justify="Justify.SpaceEvenly" AlignItems="AlignItems.Center">
+        <MudIcon Size="Size.Large" Icon="@Icons.Material.Filled.Storage"/>
+
+        <MudText Typo="Typo.h6">Please select datasource</MudText>
+    </MudStack>
+}
+else if (Schemas != null && Tables != null && Columns != null)
+{
+    <MudStack Row="@true" Spacing="2">
+        <MudItem xs="6">
+            <MudSelect
+                T="string"
+                Placeholder="Choose an option"
+                @bind-Value="@UserInput.Schema"
+                For="@(() => UserInput.Schema)"
+                Label="Schema"
+                Required="@true"
+                ReadOnly="@Readonly"
+                Variant="Variant.Outlined"
+                AnchorOrigin="Origin.BottomCenter">
+                @foreach (var schema in Schemas[Model.DataSourceProviderId.Value])
+                {
+                    <MudSelectItem T="string" Value="@schema">@schema</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6">
+            @if (UserInput.Schema != null)
+            {
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@UserInput.Table"
+                    For="@(() => UserInput.Table)"
+                    Label="Table"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var table in Tables[DataSourceService.GetTablesKey(Model.DataSourceProviderId.Value, UserInput.Schema)])
+                    {
+                        <MudSelectItem T="string" Value="@table.TableName">@table.TableName</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </MudItem>
+    </MudStack>
+    <MudStack Row="@true" Spacing="2">
+        @if (UserInput.Table != null)
+        {
+            <MudItem xs="4">
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@UserInput.ColumnId"
+                    For="@(() => UserInput.ColumnId)"
+                    Label="ID column"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var column in Columns[DataSourceService.GetColumnsKey(Model.DataSourceProviderId.Value, UserInput.Schema, UserInput.Table)])
+                    {
+                        <MudSelectItem T="string" Value="@column.Name">@column.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="4">
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@UserInput.ColumnIdentity"
+                    For="@(() => UserInput.ColumnIdentity)"
+                    MultiSelection="@true"
+                    Label="Identity column"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+
+                    @foreach (var column in Columns[DataSourceService.GetColumnsKey(Model.DataSourceProviderId.Value, UserInput.Schema, UserInput.Table)])
+                    {
+                        <MudSelectItem T="string" Value="@column.Name">@column.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="4">
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@UserInput.ColumnPassword"
+                    For="@(() => UserInput.ColumnPassword)"
+                    Label="Password column"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var column in Columns[DataSourceService.GetColumnsKey(Model.DataSourceProviderId.Value, UserInput.Schema, UserInput.Table)])
+                    {
+                        <MudSelectItem T="string" Value="@column.Name">@column.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+    </MudStack>
+}
+
+@code {
+
+    [Parameter, EditorRequired]
+    public AuthProviderIdentityUserInput UserInput { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<AuthProviderIdentityUserInput> UserInputChanged { get; set; }
+
+}

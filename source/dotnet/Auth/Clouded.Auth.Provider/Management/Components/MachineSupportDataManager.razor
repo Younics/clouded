@@ -1,0 +1,28 @@
+@using Clouded.Auth.Provider.Options
+@using Clouded.Auth.Provider.Dictionaries
+@inject ApplicationOptions Options
+
+ <MudPaper Class="pa-2">
+    <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Additional settings</MudText>
+    <MudCheckBox
+      T="bool"
+      Label="Blocked"
+      Checked="(bool) Data[Options.Clouded.Auth.Identity.Machine!.ColumnBlocked]!"
+      CheckedChanged="OnBlockChanged"
+    />
+ </MudPaper>
+
+
+@code {
+    [Parameter]
+    public required MachineDictionary Data { get; set; } 
+    
+    [Parameter]
+    public EventCallback<MachineDictionary>? DataChanged { get; set; }
+
+    private void OnBlockChanged(bool blocked)
+    {
+        Data[Options.Clouded.Auth.Identity.Machine!.ColumnBlocked] = blocked;
+        DataChanged?.InvokeAsync(Data);
+    } 
+}

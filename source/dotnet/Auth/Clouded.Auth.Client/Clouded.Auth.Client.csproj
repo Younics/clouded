@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>Clouded.Auth.Client</PackageId>
+    <Version>1.0.9</Version>
+    <Title>Clouded Auth provider C# integration library</Title>
+    <Authors>Younics</Authors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flurl.Http" Version="4.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Clouded.Results\Clouded.Results.csproj" />
+    <ProjectReference Include="..\..\Clouded.Shared\Clouded.Shared.csproj" />
+    <ProjectReference Include="..\Clouded.Auth.Shared\Clouded.Auth.Shared.csproj" />
+  </ItemGroup>
+</Project>

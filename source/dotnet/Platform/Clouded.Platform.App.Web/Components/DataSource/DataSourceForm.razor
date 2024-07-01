@@ -1,0 +1,510 @@
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Platform.App.Web.Validators
+@using Clouded.Core.DataSource.Api
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Database.Entities.Clouded
+@using Connection = Clouded.Core.DataSource.Shared.Connection
+@inject IDialogService DialogService
+@inject NavigationManager NavigationManager
+@inject ISnackbar SnackbarService
+@inject IDataSourceService DataSourceService
+@inject IDbContextResolver DbContextResolver
+
+<MudForm
+    @ref="@_formRef"
+    @bind-IsValid="@_isValid"
+    ValidationDelay="300"
+    Validation="@_validator"
+    Model="@Model">
+<MudGrid Spacing="4">
+<MudItem xs="12">
+    <MudStack Class="" Row="@true">
+        <MudText Class="flex-grow-1" Typo="Typo.h2">@Title</MudText>
+    </MudStack>
+</MudItem>
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@DataSourceService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@DataSourceService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+
+
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                Disabled="@(!_isValid)"
+                OnClick="@(() => OnTestConnection())"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Cable"
+                Variant="Variant.Filled">
+                Test connection
+            </MudButton>
+            <MudButton
+                Disabled="@(_isReadonlyConnection || !_isTestedConnection)"
+                OnClick="@OnValidSubmit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@DataSourceService.GetEditRoute(ProjectId, Model.Id)"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+<MudItem sm="12" md="6">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Basic configuration">
+        <Content>
+            <div class="d-flex flex-column gap-2">
+                <MudTextField
+                    ReadOnly="Readonly"
+                    T="string?"
+                    Immediate="true"
+                    @bind-Value="Model.Name"
+                    For="@(() => Model.Name)"
+                    Label="Name"
+                    Required="true"
+                    Variant="Variant.Outlined"/>
+                <MudSelect
+                    ReadOnly="Readonly"
+                    T="DatabaseType?"
+                    Immediate="true"
+                    Value="Model.Type"
+                    ValueChanged="OnTypeChange"
+                    For="@(() => Model.Type)"
+                    Label="Type"
+                    Required="true"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (DatabaseType? type in Enum.GetValues(typeof(DatabaseType)))
+                    {
+                        <MudSelectItem Value="@type">@type</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField
+                    ReadOnly="Readonly"
+                    T="string?"
+                    Immediate="true"
+                    @bind-Value="Model.Database"
+                    For="@(() => Model.Database)"
+                    Label="Database"
+                    Required="true"
+                    Variant="Variant.Outlined"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem sm="12" md="6">
+    <Tile Icon="@Icons.Material.Filled.Lan" Title="Network access">
+        <Content>
+            <div class="d-flex flex-column gap-2">
+                <div class="d-flex gap-2">
+                    <MudTextField
+                        ReadOnly="Readonly"
+                        Immediate="true"
+                        Class="flex-4"
+                        T="string?"
+                        @bind-Value="Model.Server"
+                        For="@(() => Model.Server)"
+                        Label="Server"
+                        Required="true"
+                        Variant="Variant.Outlined"/>
+
+                    <MudTextField
+                        ReadOnly="Readonly"
+                        T="int?"
+                        @ref="_typeTextField"
+                        @bind-Value="Model.Port"
+                        Class="flex-1"
+                        For="@(() => Model.Port)"
+                        Label="Port"
+                        Required="true"
+                        InputMode="InputMode.numeric"
+                        InputType="InputType.Number"
+                        Variant="Variant.Outlined"/>
+                </div>
+                <MudTextField
+                    ReadOnly="Readonly"
+                    T="string?"
+                    Immediate="true"
+                    @bind-Value="Model.Username"
+                    For="@(() => Model.Username)"
+                    Label="Username"
+                    Required="true"
+                    Variant="Variant.Outlined"/>
+                <PasswordField
+                    ReadOnly="Readonly"
+                    Immediate="true"
+                    @bind-Value="Model.Password"
+                    For="@(() => Model.Password)"
+                    Label="Password"
+                    Required="true"
+                    Variant="Variant.Outlined"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+@if (Readonly || _schemas != null)
+{
+    <MudItem xs="12">
+        <Tile Icon="@Icons.Material.Filled.DataObject" Title="Database preview">
+            <Content>
+                <MudGrid Spacing="2">
+                    @if (_schemas != null)
+                    {
+                        <MudItem xs="3">
+                            <MudPaper Outlined="true" Square="true">
+                                <MudList Clickable="true" Dense="true" SelectedValue="@_selectedSchema" SelectedValueChanged="@OnSchemaSelection">
+                                    <MudListSubheader>
+                                        Schemas
+                                    </MudListSubheader>
+                                    @foreach (var schema in _schemas)
+                                    {
+                                        <MudListItem Text="@schema" Value="@schema"/>
+                                    }
+                                </MudList>
+                            </MudPaper>
+                        </MudItem>
+                    }
+
+                    @if (_tables != null)
+                    {
+                        <MudItem xs="3">
+                            <MudPaper Outlined="true" Square="true">
+                                <MudList Clickable="true" Dense="true" SelectedValue="@_selectedTable" SelectedValueChanged="@OnTableSelection">
+                                    <MudListSubheader>
+                                        Schema: @_selectedSchema
+                                    </MudListSubheader>
+                                    @foreach (var table in _tables)
+                                    {
+                                        <MudListItem Text="@table.TableName" Value="@table"/>
+                                    }
+                                </MudList>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                    @if (_columns != null)
+                    {
+                        <MudItem xs="6">
+                            <MudPaper Outlined="true" Square="true">
+                                <MudList Dense="true" @bind-SelectedValue="_selectedColumn">
+                                    <MudListSubheader>
+                                        Table: @(((TableResult)_selectedTable).TableName)
+                                    </MudListSubheader>
+                                    @foreach (var columnResult in _columns)
+                                    {
+                                        <MudListItem Value="@columnResult">
+                                            <MudStack Row="@true" AlignItems="AlignItems.Center">
+                                                @if (columnResult.IsPrimary)
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Outlined.Key"/>
+                                                }
+                                                else if (columnResult.IsForeignKey)
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Outlined.Link"/>
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Outlined.List"/>
+                                                }
+                                                <div>@columnResult.Name</div>
+                                                @if (columnResult is { IsForeignKey: true, InsideRelation: not null })
+                                                {
+                                                    <div>(@(columnResult.InsideRelation.TargetSchema).@(columnResult.InsideRelation.TargetTable).@(columnResult.InsideRelation.TargetColumn))</div>
+                                                }
+                                                <small>
+                                                    @columnResult.TypeRaw
+                                                    @if (columnResult.MaxLength != null)
+                                                    {
+                                                        <span>(@columnResult.MaxLength)</span>
+                                                    }
+                                                </small>
+                                                @if (!columnResult.IsNullable)
+                                                {
+                                                    <small>not null</small>
+                                                }
+                                            </MudStack>
+                                        </MudListItem>
+                                    }
+                                </MudList>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </Content>
+        </Tile>
+    </MudItem>
+}
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@DataSourceService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@DataSourceService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+
+
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                Disabled="@(!_isValid)"
+                OnClick="@(() => OnTestConnection())"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Cable"
+                Variant="Variant.Filled">
+                Test connection
+            </MudButton>
+            <MudButton
+                Disabled="@(_isReadonlyConnection || !_isTestedConnection)"
+                OnClick="@OnValidSubmit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@DataSourceService.GetEditRoute(ProjectId, Model.Id)"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+</MudGrid>
+</MudForm>
+
+
+@code {
+
+    [Parameter, EditorRequired]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string Title { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public DataSourceInput? Model { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter]
+    public bool Readonly { get; set; } = true;
+
+    private MudForm _formRef = null!;
+    private bool _isValid = true;
+    private DataSourceValidator _validator = new();
+    private MudTextField<int?> _typeTextField = null!;
+
+    private Context? _temporaryContext;
+    private IEnumerable<string>? _schemas;
+    private IEnumerable<TableResult>? _tables;
+    private IEnumerable<ColumnResult>? _columns;
+
+    private object? _selectedSchema;
+    private object? _selectedTable;
+    private object? _selectedColumn;
+    private bool _isReadonlyConnection;
+    private bool _isTestedConnection;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Model.Id != null && Readonly)
+        {
+            await OnTestConnection(false);
+        }
+
+        if (_temporaryContext != null && _tables == null)
+        {
+            _schemas = _temporaryContext.GetSchema().ToList().Order();
+
+            SchemaSelected(_schemas.FirstOrDefault());
+
+            StateHasChanged();
+        }
+
+        if (Model?.Id != null)
+        {
+    //because of test connection btn
+            await _formRef.Validate();
+        }
+    }
+
+    private void SchemaSelected(string? schemaSelection)
+    {
+        _selectedSchema = schemaSelection;
+        if (_selectedSchema != null)
+        {
+            _tables = _temporaryContext.GetTables((string)_selectedSchema).ToList().OrderBy(x => x.TableName);
+
+            TableSelected(_tables.FirstOrDefault());
+        }
+    }
+
+    private void TableSelected(TableResult? tableSelection)
+    {
+        _selectedTable = tableSelection;
+        if (_selectedTable != null)
+        {
+            _columns = _temporaryContext.GetColumns(((TableResult)_selectedTable).SchemaName,
+                ((TableResult)_selectedTable).TableName).OrderByDescending(x => x.IsPrimary).ThenByDescending(x => x.IsForeignKey);
+        }
+    }
+
+    private async Task OnTestConnection(bool withToastInfo = true)
+    {
+        var validationResult = await new DataSourceValidator().ValidateAsync(Model);
+        if (!validationResult.IsValid)
+        {
+            SnackbarService.Add("Some values are missing", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            var datasourceContext = new Context(new Connection
+            {
+                Type = Model.Type.Value,
+                Server = Model.Server,
+                Port = Model.Port.Value,
+                Username = Model.Username,
+                Password = Model.Password,
+                Database = Model.Database
+            });
+
+            datasourceContext.TestConnection();
+            _temporaryContext = datasourceContext;
+
+            if (withToastInfo)
+            {
+                SnackbarService.Add("Connection succeeded", Severity.Success);
+            }
+
+            _isReadonlyConnection = _temporaryContext.CheckIfConnectionIsReadonly();
+            if (_isReadonlyConnection && withToastInfo)
+            {
+                SnackbarService.Add("Connection is read-only!", Severity.Warning);
+            }
+            _isTestedConnection = true;
+        }
+        catch
+        {
+            if (withToastInfo)
+            {
+                SnackbarService.Add("Connection failed", Severity.Warning);
+            }
+        }
+    }
+
+    private async Task HandleRemoveClick()
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+            var dataSource = await dbContext
+                .GetAsync<DataSourceEntity>(x => x.Id == Model.Id);
+
+            await DataSourceService.DeleteAsync(dataSource);
+            SnackbarService.Add("Deleted", Severity.Success);
+            NavigationManager.NavigateTo($"/projects/{ProjectId}/datasources");
+        }
+    }
+
+    private void OnSchemaSelection(object schema)
+    {
+        SchemaSelected((string?)schema);
+    }
+
+    private void OnTableSelection(object table)
+    {
+        TableSelected((TableResult?)table);
+    }
+
+    private void OnTypeChange(DatabaseType? type)
+    {
+        Model.Type = type;
+
+        switch (type)
+        {
+            case DatabaseType.PostgreSQL:
+                _typeTextField.SetText("5432");
+                break;
+            case DatabaseType.MySQL:
+                _typeTextField.SetText("3306");
+                break;
+        }
+    }
+
+}

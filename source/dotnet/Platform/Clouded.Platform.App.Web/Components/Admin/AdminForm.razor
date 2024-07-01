@@ -1,0 +1,472 @@
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Platform.Database.Entities.Clouded
+@using FluentValidation.Internal
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Shared.Enums
+@inherits CancellableComponentBase
+@inject IDbContextResolver DbContextResolver
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject IAdminProviderService AdminProviderService
+@inject ISnackbar SnackbarService
+@inject IJSRuntime Js
+
+<EditForm
+    @ref="@_formRef"
+    @bind-IsValid="@_isValid"
+    ValidationDelay="300"
+    OnValidSubmit="OnValidSubmit"
+    Model="@Model">
+
+<FluentValidationValidator @ref="_fluentValidationValidator" Options="@AdjustStrategy"/>
+
+<MudGrid Spacing="4">
+<MudItem xs="12">
+    <MudStack Class="" Row="@true">
+        <MudText Class="flex-grow-1" Typo="Typo.h2">@Title @(IsCreate ? null : Model?.Name)</MudText>
+    </MudStack>
+</MudItem>
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AdminProviderService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AdminProviderService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                ButtonType="ButtonType.Submit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            @if (_adminProviderEntity != null)
+            {
+                <AdminDeployButtons ProviderHub="@ProviderHub" FullText="@true" Entity="_adminProviderEntity"/>
+                <AdminStatusButton ProviderHub="@ProviderHub" FullText="@true" Entity="_adminProviderEntity"/>
+            }
+
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@AdminProviderService.GetEditRoute(ProjectId, Model.Id)"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+
+<MudItem sm="12" md="4">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Basic configuration">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <MudTextField
+                    T="string?"
+                    ReadOnly="@Readonly"
+                    @bind-Value="Model.Name"
+                    For="@(() => Model.Name)"
+                    TextChanged="OnNameChanged"
+                    Immediate="true"
+                    Label="Name"
+                    Required="true"
+                    Variant="Variant.Outlined"/>
+
+                <MudTextField
+                    T="string?"
+                    ReadOnly="@Readonly"
+                    @bind-Value="Model.Code"
+                    @ref="_codeTextField"
+                    For="@(() => Model.Code)"
+                    AdornmentText="@Model.CodePrefix"
+                    Adornment="Adornment.Start"
+                    Label="Code"
+                    Required="true"
+                    Variant="Variant.Outlined"/>
+
+                @if (_domains.Any())
+                {
+                    <MudSelect
+                        T="long?"
+                        ReadOnly="@Readonly"
+                        Placeholder="Choose an option"
+                        Variant="Variant.Outlined"
+                        Label="Domain"
+                        @bind-Value="Model.DomainId"
+                        Required="@true"
+                        AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var domain in _domains)
+                        {
+                            <MudSelectItem T="long?" Value="@domain.Id">@domain.Value</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+
+                @if (_dataSources.Any())
+                {
+                    <MudSelect
+                        T="long"
+                        ReadOnly="@Readonly"
+                        Placeholder="Choose an option"
+                        Variant="Variant.Outlined"
+                        Label="DataSources"
+                        MultiSelection="@true"
+                        MultiSelectionTextFunc="@GetMultiSelectionText"
+                        @bind-SelectedValues="Model.DataSourceProviderIds"
+                        Required="@true"
+                        AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var datasource in _dataSources)
+                        {
+                            <MudSelectItem Value="@datasource.Id">@datasource.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+@if (Model.Id != null)
+{
+    <MudItem sm="12" md="8">
+        <Tile Icon="@Icons.Material.Filled.Menu" Title="Navigation groups" HelperText="Setup the navigation groups which group the specified navigation menu items. Items those are visible in menu are configured in 'Tables' section.">
+            <Content>
+                <MudStack Row="@false" Spacing="2">
+                    <ValidationInfoBox T="IEnumerable<AdminProviderNavigationGroupInput>" For="@(() => Model.NavGroups)"/>
+                    <NavigationGroupManagment @bind-Groups="@Model.NavGroups" Readonly="@Readonly"/>
+                </MudStack>
+            </Content>
+        </Tile>
+    </MudItem>
+
+    <MudItem sm="12" md="4">
+        <Tile Icon="@Icons.Material.Filled.Settings" Title="User settings">
+            <Content>
+                @if (_dataSources.Any())
+                {
+                    <MudSelect
+                        T="long?"
+                        ReadOnly="@Readonly"
+                        Placeholder="Choose an option"
+                        Variant="Variant.Outlined"
+                        Label="DataSource"
+                        For="@(() => Model.UserSettings.DataSourceId)"
+                        @bind-Value="@Model.UserSettings.DataSourceId"
+                        Required="@true"
+                        HelperText="Datasource will be used to store user settings"
+                        AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var datasource in _dataSources)
+                        {
+                            <MudSelectItem T="long?" Value="@datasource.Id">@datasource.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    if (_schemas != null && Model.UserSettings.DataSourceId != null)
+                    {
+                        <MudSelect
+                            Style="margin-top: 1rem"
+                            T="string?"
+                            ReadOnly="@Readonly"
+                            Placeholder="Choose an option"
+                            Variant="Variant.Outlined"
+                            Label="Schema"
+                            For="@(() => Model.UserSettings.UserSettingsSchema)"
+                            @bind-Value="@Model.UserSettings.UserSettingsSchema"
+                            Required="@true"
+                            AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var schema in _schemas[(long)Model.UserSettings.DataSourceId])
+                            {
+                                <MudSelectItem T="string?" Value="@schema">@schema</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                }
+            </Content>
+        </Tile>
+    </MudItem>
+
+    <MudItem sm="12" md="8">
+        <Tile Icon="@Icons.Material.Filled.People" Title="User access">
+            <Content>
+                <MudStack Row="@false" Spacing="2">
+                    <ValidationInfoBox T="IEnumerable<AdminProviderUserAccessInput>" For="@(() => Model.UserAccess)"/>
+                    <UserAccessManagment @bind-Users="@Model.UserAccess" Readonly="@Readonly"/>
+                </MudStack>
+            </Content>
+        </Tile>
+    </MudItem>
+
+    <MudItem xs="12">
+        <Tile Icon="@Icons.Material.Filled.DataObject" Title="Global functions" HelperText="Global functions are executed for every create/update/delete trigger in admin panel." Collapsable="@true">
+            <Content>
+                <MudStack Row="@false" Spacing="2">
+                    <MudItem xs="12">
+                        <FunctionsHelp/>
+                    </MudItem>
+                    <MudStack Row="@true" Spacing="2">
+                        <MudItem xs="12" md="4">
+                            <FunctionsManagment
+                                ReadOnly="@Readonly"
+                                @bind-AfterHooks="@Model.CreateFunctions.AfterHooks"
+                                @bind-BeforeHooks="@Model.CreateFunctions.BeforeHooks"
+                                @bind-InputHooks="@Model.CreateFunctions.InputHooks"
+                                @bind-ValidationHooks="@Model.CreateFunctions.ValidationHooks"
+                                FunctionProviders="@_functionProviders" ProjectId="@ProjectId" OperationTrigger="EAdminProviderFunctionTrigger.Create"/>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <FunctionsManagment
+                                ReadOnly="@Readonly"
+                                @bind-AfterHooks="@Model.UpdateFunctions.AfterHooks"
+                                @bind-BeforeHooks="@Model.UpdateFunctions.BeforeHooks"
+                                @bind-InputHooks="@Model.UpdateFunctions.InputHooks"
+                                @bind-ValidationHooks="@Model.UpdateFunctions.ValidationHooks"
+                                FunctionProviders="@_functionProviders" ProjectId="@ProjectId" OperationTrigger="EAdminProviderFunctionTrigger.Update"/>
+                        </MudItem>
+                        <MudItem xs="12" md="4">
+                            <FunctionsManagment
+                                ReadOnly="@Readonly"
+                                @bind-AfterHooks="@Model.DeleteFunctions.AfterHooks"
+                                @bind-BeforeHooks="@Model.DeleteFunctions.BeforeHooks"
+                                @bind-InputHooks="@Model.DeleteFunctions.InputHooks"
+                                @bind-ValidationHooks="@Model.DeleteFunctions.ValidationHooks"
+                                FunctionProviders="@_functionProviders" ProjectId="@ProjectId" OperationTrigger="EAdminProviderFunctionTrigger.Delete"/>
+                        </MudItem>
+                    </MudStack>
+                </MudStack>
+            </Content>
+        </Tile>
+    </MudItem>
+
+    <MudItem xs="12">
+        <Tile Icon="@Icons.Material.Filled.PivotTableChart" Title="Tables">
+            <Content>
+                <ValidationInfoBox T="IEnumerable<AdminProviderTableInput>" For="@(() => Model.Tables)"/>
+                <TablesManagment
+                    FunctionProviders="@_functionProviders"
+                    ProjectId="@ProjectId"
+                    SchemasChanged="OnSchemasLoaded"
+                    ProviderId="@Model.Id"
+                    @bind-Tables="@Model.Tables"
+                    Readonly="@Readonly"
+                    Groups="@Model.NavGroups"
+                    DatasourcesIds="@Model.DataSourceProviderIds"/>
+            </Content>
+        </Tile>
+    </MudItem>
+}
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AdminProviderService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AdminProviderService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                ButtonType="ButtonType.Submit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            @if (_adminProviderEntity != null)
+            {
+                <AdminDeployButtons ProviderHub="@ProviderHub" FullText="@true" Entity="_adminProviderEntity"/>
+                <AdminStatusButton ProviderHub="@ProviderHub" FullText="@true" Entity="_adminProviderEntity"/>
+            }
+
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@AdminProviderService.GetEditRoute(ProjectId, Model.Id)"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+</MudGrid>
+</EditForm>
+
+@code {
+
+    [Parameter, EditorRequired] public string ProjectId { get; set; } = null!;
+
+    [Parameter] public string Title { get; set; } = null!;
+
+    [Parameter, EditorRequired] public AdminProviderInput Model { get; set; } = null!;
+
+    [Parameter, EditorRequired] public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter] public bool Readonly { get; set; } = true;
+
+    [Parameter] public bool IsCreate { get; set; } = true;
+
+    [Parameter] public HubConnection? ProviderHub { get; set; }
+
+    private EditForm _formRef = null!;
+    private bool _isValid = true;
+
+    private IEnumerable<DataSourceEntity> _dataSources = Array.Empty<DataSourceEntity>();
+    private MudTextField<string?>? _codeTextField;
+    private FluentValidationValidator? _fluentValidationValidator;
+    private Dictionary<long, IEnumerable<string>?>? _schemas;
+    private AdminProviderEntity? _adminProviderEntity;
+    private CloudedDbContext _dbContext = null!;
+    private IEnumerable<DomainEntity> _domains = Array.Empty<DomainEntity>();
+    private List<FunctionProviderEntity> _functionProviders = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+        _domains = await _dbContext.GetAll<DomainEntity>().ToListAsync(CancellationToken);
+        _dataSources = await _dbContext
+            .GetAll<DataSourceEntity>()
+            .Where(x => x.ProjectId == long.Parse(ProjectId))
+            .ToListAsync(CancellationToken);
+        _functionProviders = await _dbContext.GetAll<FunctionProviderEntity>()
+            .Where(i => i.ProjectId == long.Parse(ProjectId))
+            .ToListAsync(CancellationToken);
+
+        if (Model.Id != null)
+        {
+            _adminProviderEntity = await _dbContext
+                .GetAsync<AdminProviderEntity>
+                (
+                    entity =>
+                        entity.Id == Model.Id.Value,
+                    CancellationToken
+                );
+        }
+    }
+
+    private void OnNameChanged(string? name) =>
+        _codeTextField?.SetText(name?.ToLower().Replace(' ', '-'));
+
+    private string GetMultiSelectionText(List<string> selectedValues) =>
+        string.Join
+        (
+            ", ",
+            selectedValues.Select
+            (
+                id =>
+                    _dataSources
+                        .FirstOrDefault
+                        (
+                            d =>
+                                d.Id == long.Parse(id)
+                        )
+                        ?.Name
+            )
+        );
+
+    private async Task HandleRemoveClick()
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var adminPanel = await _dbContext
+                .GetAsync<AdminProviderEntity>(x => x.Id == Model.Id);
+
+            await AdminProviderService.DeleteAsync(adminPanel!, ProviderHub!, SnackbarService);
+            SnackbarService.Add("Deleted", Severity.Success);
+            NavigationManager.NavigateTo(AdminProviderService.GetListRoute(ProjectId));
+        }
+    }
+
+    private async Task HandleSelfDeployClick()
+    {
+        var dialog = await DialogService.ShowAsync<SelfDeploymentDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var adminProviderEntity = await _dbContext
+                .GetAsync<AdminProviderEntity>(x => x.Id == Model.Id);
+
+
+            var fileStream = await AdminProviderService.SelfDeploy(adminProviderEntity);
+            SnackbarService.Add("Download of your deployment script starts soon", Severity.Success);
+
+            var streamRef = new DotNetStreamReference(fileStream);
+            await Js.InvokeVoidAsync("downloadFileFromStream", "deploy.zip", streamRef);
+        }
+    }
+
+    private void OnSchemasLoaded(Dictionary<long, IEnumerable<string>?> loadedSchemas)
+    {
+        _schemas = loadedSchemas;
+    }
+
+    private void AdjustStrategy(ValidationStrategy<object> obj)
+    {
+        if (!IsCreate)
+        {
+            obj.IncludeRuleSets("EditProfile");
+        }
+    }
+
+}

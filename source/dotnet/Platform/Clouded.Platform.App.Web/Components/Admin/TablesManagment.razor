@@ -1,0 +1,607 @@
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Shared
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Core.DataSource.Api
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Shared.Enums
+@using MudBlazor.Utilities
+
+@inject IDbContextResolver DbContextResolver
+@inject IDataSourceService dataSourceService
+
+@if (_loadingContexts)
+{
+    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true"/>
+}
+else
+{
+    <MudGrid Spacing="2">
+        @if (_dataSources.Any())
+        {
+            <MudItem xs="6">
+                <MudSelect
+                    T="long?"
+                    Placeholder="Choose an option"
+                    Variant="Variant.Outlined"
+                    Label="DataSource"
+                    @bind-Value="@_selectedDatasource"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var datasource in _dataSources)
+                    {
+                        <MudSelectItem T="long?" Value="@datasource.Id">@datasource.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+        @if (_selectedDatasource != null && _schemas.GetValueOrDefault((long)_selectedDatasource) != null)
+        {
+            <MudItem xs="6">
+                <MudSelect
+                    T="object?"
+                    Placeholder="Choose an option"
+                    Variant="Variant.Outlined"
+                    Label="Schema"
+                    Value="@_selectedSchema"
+                    ValueChanged="@OnSchemaSelection"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var schema in _schemas.GetValueOrDefault((long)_selectedDatasource)!)
+                    {
+                        <MudSelectItem T="object?" Value="@schema">@schema</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+        @if (_selectedDatasource != null && _selectedSchemaTables != null && _selectedSchema != null)
+        {
+            <MudItem xs="12">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Tables</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Row="@false">
+                            <MudItem xs="12">
+                                <MudSelect
+                                    T="object?"
+                                    Placeholder="Choose an option"
+                                    Variant="Variant.Outlined"
+                                    Label="Table"
+                                    Value="@_selectedTable"
+                                    ValueChanged="@OnTableSelection"
+                                    ToStringFunc="@(o => ((TableResult)o).TableName)"
+                                    AnchorOrigin="Origin.BottomCenter">
+                                    @foreach (var table in _selectedSchemaTables)
+                                    {
+                                        <MudSelectItem T="object?" Value="@table">@table.TableName</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            @if (Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName) != null)
+                            {
+                                <MudItem xs="12">
+                                    <TableManagment
+                                        FunctionProviders="@FunctionProviders" ProjectId="@ProjectId"
+                                        Table="@Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName)"
+                                        TableChanged="@OnTableChange"
+                                        Groups="@Groups"
+                                        Readonly="@Readonly"/>
+                                </MudItem>
+                            }
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+
+        @if (_selectedDatasource != null && _selectedTable != null && _selectedTableColumns != null && _selectedTableColumns.Any())
+        {
+            <MudItem xs="12">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Columns</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        @if (!Readonly)
+                        {
+                            <MudStack Row="@true" Class="mb-4">
+                                <MudButton
+                                    Color="Color.Secondary"
+                                    Variant="Variant.Filled" OnClick="@TriggerAllCols">
+                                    @(IsAllEnabled() ? "Disable" : "Enable") all
+                                </MudButton>
+                            </MudStack>
+                        }
+                        <MudDropContainer
+                            T="ColumnResult"
+                            Items="@_selectedTableColumns"
+                            @ref="_columnsContainer"
+                            ItemsSelector="@((item, dropzone) => true)"
+                            ItemDropped="ColumnsOrderUpdated"
+                            Class="d-flex flex-wrap flex-grow-1">
+                            <ChildContent>
+                                <MudDropZone T="ColumnResult" Identifier="columns" Class="flex-grow-1" AllowReorder="@(!Readonly)"/>
+                            </ChildContent>
+                            <ItemRenderer>
+                                <MudStack Class="mud-background rounded-lg pa-3 mb-4" Style="width: 100%" Row="@true" AlignItems="AlignItems.Center" Spacing="4">
+                                    @if (!Readonly)
+                                    {
+                                        <MudIcon Class="mud-drop-item-handle" Icon="@Icons.Material.Filled.DragHandle"/>
+                                    }
+                                    <MudStack Style="width: 100%" Row="@false">
+                                        <MudStack Row="@true" AlignItems="AlignItems.Center">
+                                            <MudText Style="font-weight: bold">@context.Name</MudText>
+                                            <MudText>
+                                                @context.TypeRaw
+                                                @if (context.MaxLength != null)
+                                                {
+                                                    <small>(@context.MaxLength)</small>
+                                                }
+                                            </MudText>
+                                            @if (!context.IsNullable)
+                                            {
+                                                <MudText>not null</MudText>
+                                            }
+                                            @if (context.IsPrimary)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Outlined.Key" Title="PK"/>
+                                            }
+                                            else if (context.IsForeignKey)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Outlined.Link" Title="FK"/>
+                                            }
+                                            @if (context is { IsForeignKey: true, InsideRelation: not null, IsPrimary: false })
+                                            {
+                                                <MudText>(@(context.InsideRelation.TargetSchema).@(context.InsideRelation.TargetTable).@(context.InsideRelation.TargetColumn))</MudText>
+
+                                                <MudButton
+                                                    StartIcon="@Icons.Material.Filled.ChevronRight"
+                                                    Color="Color.Secondary"
+                                                    Size="Size.Small"
+                                                    Variant="Variant.Filled"
+                                                    OnClick="@(() => OnTableSelection(new TableResult { TableName = context.InsideRelation.TargetTable, SchemaName = context.InsideRelation.TargetSchema }))">
+                                                    @(context.InsideRelation.TargetTable)
+                                                </MudButton>
+                                            }
+                                        </MudStack>
+
+
+                                        @if (Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName) != null
+                                             && Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.Any()
+                                             && Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.First(i => i.Column == context.Name) != null)
+                                        {
+                                            <TableColumnManagment Readonly="@Readonly"
+                                                                  ColumnResult="@context"
+                                                                  Column="@Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.First(i => i.Column == context.Name)"
+                                                                  ColumnChanged="@OnColumnChange"/>
+                                        }
+                                    </MudStack>
+                                </MudStack>
+                            </ItemRenderer>
+                        </MudDropContainer>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12">
+                <MudCard>
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">Virtual columns</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Class="mb-4">
+                            <b>Available variables: </b>@string.Join(", ", _selectedTableColumns.Select(x => x.Name))
+                        </MudText>
+                        <MudText Class="mb-4">
+                            <b>Command examples: </b>
+                            <ul>
+                                <li>
+                                    <code>5 + 2 * 8 / (80 + 9.9)</code>
+                                </li>
+                                <li>
+                                    <code>"Hello" + " " + "world!"</code>
+                                </li>
+                                @if (_selectedTableColumns.Any())
+                                {
+                                    <li>
+                                        <code>"Hello " + @(_selectedTableColumns.First().Name) + " variable!"</code>
+                                    </li>
+                                }
+                                <li>
+                                    <code>string.Format("My name is {0}. Today is {1}", "R2-D2", DateTime.Now.ToShortDateString())</code>
+                                </li>
+                            </ul>
+                        </MudText>
+
+                        @if (_selectedTableVirtualColumns != null)
+                        {
+                            <MudDropContainer
+                                T="AdminProviderTableInput.AdminProviderTableColumnInput"
+                                Items="@_selectedTableVirtualColumns"
+                                @ref="_virtualColumnsContainer"
+                                ItemsSelector="@((item, dropzone) => true)"
+                                ItemDropped="VirtualColumnsOrderUpdated"
+                                Class="d-flex flex-wrap flex-grow-1">
+                                <ChildContent>
+                                    <MudDropZone T="AdminProviderTableInput.AdminProviderTableColumnInput" Identifier="virtual-columns" Class="flex-grow-1" AllowReorder="@(!Readonly)"/>
+                                </ChildContent>
+                                <ItemRenderer>
+                                    <MudStack Class="mud-background rounded-lg pa-3 mb-4" Style="width: 100%" Row="@true" AlignItems="AlignItems.Center" Spacing="4">
+                                        @if (!Readonly)
+                                        {
+                                            <MudIcon Class="mud-drop-item-handle" Icon="@Icons.Material.Filled.DragHandle"/>
+                                        }
+                                        <TableVirtualColumnManagment Readonly="@Readonly"
+                                                                     VirtualColumn="@context"
+                                                                     VirtualColumnChanged="@OnColumnChange"/>
+
+                                        @if (!Readonly)
+                                        {
+                                            <MudIconButton
+                                                OnClick="@(() => RemoveVirtualColumn(context))"
+                                                Color="Color.Secondary"
+                                                Icon="@Icons.Material.Filled.Remove"
+                                                Variant="Variant.Filled"/>
+                                        }
+                                    </MudStack>
+                                </ItemRenderer>
+                            </MudDropContainer>
+                        }
+
+                        @if (!Readonly)
+                        {
+                            <MudButton
+                                OnClick="@AddVirtualColumn"
+                                Color="Color.Secondary"
+                                StartIcon="@Icons.Material.Filled.Add"
+                                Variant="Variant.Filled">
+                                Add
+                            </MudButton>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+
+    [Parameter]
+    public bool Readonly { get; set; } = true;
+
+    [Parameter]
+    public long? ProviderId { get; set; }
+
+    [Parameter]
+    public IEnumerable<long> DatasourcesIds { get; set; } = null!;
+
+    [Parameter]
+    public IEnumerable<AdminProviderNavigationGroupInput> Groups { get; set; } = null!;
+
+    [Parameter]
+    public IEnumerable<AdminProviderTableInput> Tables { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<IEnumerable<AdminProviderTableInput>> TablesChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<Dictionary<long, IEnumerable<string>?>> SchemasChanged { get; set; }
+
+    [Parameter]
+    public List<FunctionProviderEntity> FunctionProviders { get; set; } = new();
+
+    [Parameter, EditorRequired]
+    public string ProjectId { get; set; } = null!;
+
+    private bool _loadingContexts = true;
+
+    private IEnumerable<DataSourceEntity> _dataSources = Array.Empty<DataSourceEntity>();
+    private Dictionary<long, Context?> _temporaryContexts = new();
+    private Dictionary<long, IEnumerable<string>?> _schemas = new();
+    private Dictionary<string, IEnumerable<TableResult>?> _tables = new();
+    private Dictionary<string, IEnumerable<ColumnResult>?> _columns = new();
+
+    private IEnumerable<TableResult>? _selectedSchemaTables;
+    private IEnumerable<ColumnResult>? _selectedTableColumns;
+    private List<AdminProviderTableInput.AdminProviderTableColumnInput>? _selectedTableVirtualColumns;
+    private long? _selectedDatasource;
+    private object? _selectedSchema;
+    private object? _selectedTable;
+    private MudDropContainer<ColumnResult>? _columnsContainer;
+    private MudDropContainer<AdminProviderTableInput.AdminProviderTableColumnInput>? _virtualColumnsContainer;
+    // store all the actions you want to run **once** after rendering
+    private List<Action> _actionsToRunAfterRender = new();
+
+
+    protected override void OnInitialized()
+    {
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _dataSources = await DbContextResolver
+            .MakeContext<CloudedDbContext>()
+            .GetAll<DataSourceEntity>()
+            .Where(x => DatasourcesIds.Contains(x.Id))
+            .ToListAsync();
+
+        await LoadContexts(_dataSources);
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+    // run all the actions (.NET code) **once** after rendering
+        foreach (var actionToRun in _actionsToRunAfterRender)
+        {
+            actionToRun();
+        }
+    // clear the actions to make sure the actions only run **once**
+        _actionsToRunAfterRender.Clear();
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task LoadContexts(IEnumerable<DataSourceEntity> dataSourceEntities)
+    {
+        _loadingContexts = true;
+        var sourceEntities = dataSourceEntities as DataSourceEntity[] ?? dataSourceEntities.ToArray();
+
+        foreach (var dataSourceEntity in sourceEntities)
+        {
+            if (_temporaryContexts.GetValueOrDefault(dataSourceEntity.Id) != null)
+            {
+                continue;
+            }
+
+            var datasourceContext = dataSourceService.LoadDatasourceContext(dataSourceEntity, _schemas, _tables, _columns);
+
+            _temporaryContexts[dataSourceEntity.Id] = datasourceContext;
+        }
+
+        await PrepareInput(sourceEntities);
+
+        _loadingContexts = false;
+    }
+
+    private async Task PrepareInput(DataSourceEntity[] sourceEntities)
+    {
+        var allTablesCount = sourceEntities
+            .Select(x => _schemas[x.Id]
+                .Select(y => _tables[DataSourceService.GetTablesKey(x.Id, y)].Count())
+                .Aggregate(0, (acc, z) => acc + z))
+            .Aggregate(0, (acc, z) => acc + z);
+
+        if (Tables.Count() != allTablesCount)
+        {
+            var tablesInput = new List<AdminProviderTableInput>();
+            foreach (var dataSourceEntity in sourceEntities)
+            {
+                foreach (var schema in _schemas[dataSourceEntity.Id])
+                {
+                    foreach (var tableResult in _tables[DataSourceService.GetTablesKey(dataSourceEntity.Id, schema)])
+                    {
+                        var inputObject = Tables.FirstOrDefault(i => i.Schema == schema && i.Table == tableResult.TableName && i.DataSourceId == dataSourceEntity.Id);
+
+                        if (inputObject == null)
+                        {
+                            var newObject = new AdminProviderTableInput
+                            {
+                                Table = tableResult.TableName,
+                                Name = tableResult.TableName.Capitalize()!,
+                                AdminProviderId = ProviderId,
+                                Schema = tableResult.SchemaName,
+                                DataSourceId = dataSourceEntity.Id,
+                                Columns = _columns[DataSourceService.GetColumnsKey(dataSourceEntity.Id, schema, tableResult.TableName)].Select(
+                                    (x, index) => new AdminProviderTableInput.AdminProviderTableColumnInput
+                                    {
+                                        Enabled = x.IsPrimary || x.IsAutoIncrement,
+                                        Column = x.Name,
+                                        Name = x.Name.Capitalize()!,
+                                        Order = index + 1,
+                                        Create = new AdminProviderTableInput.AdminProviderTableColumnPermissionInput
+                                        {
+                                            Readonly = x.IsAutoIncrement
+                                        },
+                                        List = new AdminProviderTableInput.AdminProviderTableColumnPermissionInput
+                                        {
+                                            Visible = x.IsPrimary
+                                        }
+                                    }).ToList()
+                            };
+
+                            tablesInput.Add(newObject);
+                        }
+                        else
+                        {
+                            tablesInput.Add(inputObject);
+                        }
+                    }
+                }
+            }
+
+            await TablesChanged.InvokeAsync(tablesInput);
+            await SchemasChanged.InvokeAsync(_schemas);
+        }
+
+    //pre-select datasource and ema if there is only 1
+        if (_dataSources.Count() == 1)
+        {
+            _selectedDatasource = _dataSources.First().Id;
+        }
+    }
+
+    private void SchemaSelected(long datasourceId, string? schemaSelection)
+    {
+        _selectedSchema = schemaSelection;
+        if (schemaSelection != null)
+        {
+            _selectedSchemaTables = DataSourceService.GetSchemaTables(_temporaryContexts.GetValueOrDefault(datasourceId)!, schemaSelection);
+
+            TableSelected(datasourceId, _selectedSchemaTables.FirstOrDefault());
+        }
+    }
+
+    private void TableSelected(long datasourceId, TableResult? tableSelection)
+    {
+        _selectedTable = tableSelection;
+        if (tableSelection != null)
+        {
+            var cols = DataSourceService.GetTableColumns(_temporaryContexts.GetValueOrDefault(datasourceId)!, tableSelection);
+            var colOptions = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.ToList();
+
+            _selectedTableColumns = cols.OrderBy(d => colOptions.Find(i => i.Column == d.Name)!.Order).ToList();
+            _selectedTableVirtualColumns = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).VirtualColumns
+                .OrderBy(x => x.Order).ToList();
+
+            _actionsToRunAfterRender.Add(() =>
+            {
+                _columnsContainer?.Refresh();
+                _virtualColumnsContainer?.Refresh();
+            });
+        }
+    }
+
+    private void OnSchemaSelection(object? schema)
+    {
+        if (_selectedDatasource == null)
+        {
+            return;
+        }
+
+        SchemaSelected((long)_selectedDatasource, (string?)schema);
+    }
+
+    private void OnTableSelection(object? table)
+    {
+        if (_selectedDatasource == null)
+        {
+            return;
+        }
+
+        TableSelected((long)_selectedDatasource, (TableResult?)table);
+    }
+
+    private async void OnColumnChange(AdminProviderTableInput.AdminProviderTableColumnInput value)
+    {
+        var table = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName);
+
+        if (value.Type != ETableColumnType.Virtual)
+        {
+            var oldColValue = table.Columns.FirstOrDefault(i => i.Column == value.Column);
+            if (oldColValue != null)
+            {
+                table.Columns.Remove(oldColValue);
+            }
+            table.Columns.Add(value);
+        }
+        else
+        {
+            var oldColValue = table.VirtualColumns.FirstOrDefault(i => i.Column == value.Column);
+            if (oldColValue != null)
+            {
+                table.VirtualColumns.Remove(oldColValue);
+            }
+            table.VirtualColumns.Add(value);
+        }
+        await TablesChanged.InvokeAsync(Tables);
+    }
+
+    private async void OnTableChange(AdminProviderTableInput value)
+    {
+        var table = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName);
+        var tables = Tables.ToList();
+        tables.Remove(table);
+        tables.Add(value);
+        await TablesChanged.InvokeAsync(tables);
+    }
+
+    private async void AddVirtualColumn()
+    {
+        var table = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName);
+        table.VirtualColumns.Add(new AdminProviderTableInput.AdminProviderTableColumnInput
+        {
+            Type = ETableColumnType.Virtual,
+            Enabled = true,
+            Name = "Virtual - " + (table.VirtualColumns.Count + 1),
+            Column = "virtual-" + (table.VirtualColumns.Count + 1),
+            Order = table.VirtualColumns.Count + 1
+        });
+
+        await TablesChanged.InvokeAsync(Tables);
+        TableSelected((long)_selectedDatasource, _selectedTable as TableResult);
+
+        _virtualColumnsContainer.Refresh();
+    }
+
+    private async void RemoveVirtualColumn(AdminProviderTableInput.AdminProviderTableColumnInput virtualColumn)
+    {
+        var table = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName);
+        table.VirtualColumns.Remove(virtualColumn);
+
+        await TablesChanged.InvokeAsync(Tables);
+        TableSelected((long)_selectedDatasource, _selectedTable as TableResult);
+
+        _virtualColumnsContainer.Refresh();
+    }
+
+    private bool IsAllEnabled()
+    {
+        return Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.All(i => i.Enabled);
+    }
+
+    private void TriggerAllCols()
+    {
+        if (IsAllEnabled())
+        {
+            Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.ForEach(i => i.Enabled = false);
+        }
+        else
+        {
+            Tables.FirstOrDefault(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName).Columns.ForEach(i => i.Enabled = true);
+        }
+    }
+
+    private void ColumnsOrderUpdated(MudItemDropInfo<ColumnResult> arg)
+    {
+        if (Readonly)
+        {
+            return;
+        }
+
+        var table = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName);
+
+        table.Columns.UpdateOrder(new MudItemDropInfo<AdminProviderTableInput.AdminProviderTableColumnInput>(
+            table.Columns.First(i => i.Column == arg.Item!.Name),
+            arg.DropzoneIdentifier,
+            arg.IndexInZone
+            ), item => item.Order);
+
+        table.Columns.ForEach(i => i.Order++);
+
+        OnTableChange(table);
+    }
+
+    private void VirtualColumnsOrderUpdated(MudItemDropInfo<AdminProviderTableInput.AdminProviderTableColumnInput> arg)
+    {
+        if (Readonly)
+        {
+            return;
+        }
+
+        var table = Tables.First(i => i.DataSourceId == _selectedDatasource && i.Schema == (string)_selectedSchema && i.Table == ((TableResult)_selectedTable).TableName);
+
+        table.VirtualColumns.UpdateOrder(arg, item => item.Order);
+
+        table.VirtualColumns.ForEach(i => i.Order++);
+
+        OnTableChange(table);
+    }
+
+}

@@ -1,0 +1,141 @@
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Shared.Enums
+@if (Column != null)
+{
+    <MudStack Style="width: 100%" Row="@true" AlignItems="AlignItems.Center">
+        <MudItem xs="2">
+            <MudStack Row="@false">
+                <MudSwitch
+                    Color="Color.Primary"
+                    T="bool"
+                    Label="Show"
+                    For="@(() => Column.Enabled)"
+                    Checked="@Column.Enabled"
+                    CheckedChanged="@(val => OnChangeInput(() => Column.Enabled = val))"
+                    ReadOnly="@Readonly"/>
+
+                <MudNumericField
+                    T="int"
+                    Required="true"
+                    Variant="Variant.Outlined"
+                    Margin="Margin.Dense"
+                    Label="Order"
+                    Step="1"
+                    Min="1"
+                    ReadOnly="@Readonly"
+                    Value="@Column.Order"
+                    ValueChanged="@(val => OnChangeInput(() => Column.Order = val))"/>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="4">
+            <MudStack Row="@false">
+                <MudTextField
+                    T="string?"
+                    For="@(() => Column.Name)"
+                    Value="@Column.Name"
+                    ValueChanged="@(val => OnChangeInput(() => Column.Name = val))"
+                    Margin="Margin.Dense"
+                    ReadOnly="@Readonly"
+                    Label="Name"
+                    Variant="Variant.Outlined"/>
+
+                <MudSelect
+                    T="ETableColumnType"
+                    For="@(() => Column.Type)"
+                    Value="@Column.Type"
+                    ValueChanged="@(val => OnChangeInput(() => Column.Type = val))"
+                    Margin="Margin.Dense"
+                    Placeholder="Choose an option"
+                    Variant="Variant.Outlined"
+                    Label="Type"
+                    ReadOnly="@Readonly"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var columnType in Enum.GetValues<ETableColumnType>())
+                    {
+                        <MudSelectItem T="ETableColumnType" Value="@columnType">@(columnType)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="2">
+            <MudStack Row="@false" Spacing="1">
+                <MudText>List restrictions</MudText>
+                <MudSwitch
+                    Color="Color.Primary"
+                    T="bool"
+                    Label="Visible"
+                    For="@(() => Column.List.Visible)"
+                    Checked="@Column.List.Visible"
+                    CheckedChanged="@(val => OnChangeInput(() => Column.List.Visible = val))"
+                    ReadOnly="@Readonly"/>
+                @if (ColumnResult.IsFilterable())
+                {
+                    <MudSwitch
+                        Color="Color.Primary"
+                        T="bool"
+                        Label="Filterable"
+                        For="@(() => Column.Filterable)"
+                        Checked="@Column.Filterable"
+                        CheckedChanged="@(val => OnChangeInput(() => Column.Filterable = val))"
+                        ReadOnly="@Readonly"/>
+                }
+            </MudStack>
+        </MudItem>
+        <MudItem xs="2">
+            <MudStack Row="@false" Spacing="1">
+                <MudText>Form restrictions</MudText>
+                <MudSwitch Color="Color.Primary"
+                           T="bool"
+                           Label="Visible"
+                           Disabled="@(!ColumnResult.IsNullable)"
+                           For="@(() => Column.Create.Visible)"
+                           Checked="@Column.Create.Visible"
+                           CheckedChanged="@(val => OnChangeInput(() => Column.Create.Visible = val))"
+                           ReadOnly="@Readonly"/>
+                <MudSwitch Color="Color.Primary"
+                           T="bool"
+                           Label="Readonly"
+                           Disabled="@(!ColumnResult.IsNullable)"
+                           For="@(() => Column.Create.Readonly)"
+                           Checked="@Column.Create.Readonly"
+                           CheckedChanged="@(val => OnChangeInput(() => Column.Create.Readonly = val))"
+                           ReadOnly="@Readonly"/>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="2">
+            <MudStack Row="@false" Spacing="1">
+                <MudText>Detail restrictions</MudText>
+                <MudSwitch Color="Color.Primary"
+                           T="bool"
+                           Label="Visible"
+                           For="@(() => Column.Detail.Visible)"
+                           Checked="@Column.Detail.Visible"
+                           CheckedChanged="@(val => OnChangeInput(() => Column.Detail.Visible = val))"
+                           ReadOnly="@Readonly"/>
+            </MudStack>
+        </MudItem>
+    </MudStack>
+}
+
+@code {
+
+    [Parameter]
+    public bool Readonly { get; set; } = true;
+
+    [Parameter]
+    public ColumnResult ColumnResult { get; set; }
+
+    [Parameter]
+    public AdminProviderTableInput.AdminProviderTableColumnInput? Column { get; set; }
+
+    [Parameter]
+    public EventCallback<AdminProviderTableInput.AdminProviderTableColumnInput> ColumnChanged { get; set; }
+
+    private async void OnChangeInput(Action action)
+    {
+        action.Invoke();
+        await ColumnChanged.InvokeAsync(Column);
+    }
+
+}

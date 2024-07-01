@@ -1,0 +1,52 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/admin_panels/create"
+@inject ApplicationOptions ApplicationOptions
+@inject IStorageService StorageService
+@inject IAdminProviderService AdminProviderService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>@Project.Name | Admin panel - Create</PageTitle>
+
+<AdminForm Readonly="@false" Title="Create new Admin panel" Model="@_input" ProjectId="@ProjectId" OnValidSubmit="OnValidSubmit"/>
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+    
+    private readonly AdminProviderInput _input = new();
+    private AdminProviderEntity? _adminProvider;
+
+    private bool _processing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _input.ProjectId = Project.Id;
+        _input.CodePrefix = $"{Project.Code}-admin-";
+    }
+
+    private async Task OnValidSubmit()
+    {
+        _processing = true;
+        _adminProvider = await AdminProviderService.CreateAsync(_input, cancellationToken: CancellationToken);
+        _processing = false;
+
+        if (_adminProvider == null)
+        {
+            Snackbar.Add("There was an error creating Admin panel", Severity.Error);
+        }
+        else
+        {
+            Snackbar.Add("Admin panel created", Severity.Success);
+            Snackbar.Add("Please finish configuration in following form", Severity.Success);
+            NavigationManager.NavigateTo(AdminProviderService.GetEditRoute(ProjectId, _adminProvider.Id));
+        }
+    }
+}

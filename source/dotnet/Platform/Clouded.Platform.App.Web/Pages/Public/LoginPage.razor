@@ -1,0 +1,99 @@
+@page "/login"
+@using Clouded.Auth.Shared.Token.Input
+@using Clouded.Core.Tracking.Services.Interfaces
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@inject ITrackingService TrackingService
+@inject IAuthService AuthService
+@inject ISnackbar Snackbar
+
+<EditForm Model="@_input" OnValidSubmit="@Login">
+
+    <MudText Typo="Typo.h1" GutterBottom="true">Log In</MudText>
+    <MudText Class="mt-2 mx-1">Don't have an account? <MudLink Href="/register">Sign Up</MudLink></MudText>
+    
+    <MudTextField 
+        T="string" 
+        @bind-Value="@_input.Identity"
+        Label="Email" 
+        Variant="Variant.Outlined" 
+        Class="my-6"/>
+
+    <MudTextField 
+        @bind-Value="@_input.Password" 
+        Label="Password" 
+        Variant="Variant.Outlined" 
+        InputType="@_passwordInput" 
+        Adornment="Adornment.End" 
+        AdornmentIcon="@_passwordInputIcon" 
+        OnAdornmentClick="TogglePasswordVisibility"/>
+
+    <div Class="d-flex justify-space-between align-center mt-4 gap-2">
+        <MudCheckBox T="bool" Label="Remember me" Color="Color.Primary"></MudCheckBox>
+        <MudLink Href="/forgot-password">Forgot password?</MudLink>
+    </div>
+    
+    <MudButton
+        ButtonType="ButtonType.Submit"
+        EndIcon="@Icons.Material.Filled.KeyboardArrowRight"
+        Class="mt-8"
+        Variant="Variant.Filled"
+        Color="Color.Tertiary"
+        Size="Size.Large"
+        Style="max-width: 60%"
+        FullWidth="true">
+        Sign In
+    </MudButton>
+</EditForm>
+
+@code 
+{
+    private readonly OAuthInput _input = new();
+
+    private bool _passwordVisibility;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void TogglePasswordVisibility()
+    {
+        @if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+
+    private async Task Login()
+    {
+        // TODO: Validation
+        if (_input.Identity == null || _input.Password == null)
+        {
+            //TODO: remove
+            Snackbar.Add("Please fill email and password", Severity.Error);
+            return;
+        }
+        var login = await AuthService.LoginAsync(_input.Identity, _input.Password, CancellationToken);
+
+        if (!login)
+        {
+            Snackbar.Add("Wrong credentials!", Severity.Error);
+            return;
+        }
+        
+        var currentUserId = await AuthService.CurrentAuthIdAsync();
+        if (currentUserId == null)
+        {
+            Snackbar.Add("Something went wrong, try again.", Severity.Error);
+            return;
+        }
+
+        await TrackingService.TrackUserAsync(currentUserId, "SignIn");
+    }
+}

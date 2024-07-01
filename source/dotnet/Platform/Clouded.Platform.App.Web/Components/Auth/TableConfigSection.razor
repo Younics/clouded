@@ -1,0 +1,56 @@
+
+@if (Model.Enabled)
+{
+    <div Class="d-flex flex-column gap-4">
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.Schema"
+            For="@(() => Model.Schema)"
+            Label="Schema"
+            Required="true"
+            Variant="Variant.Outlined"/>
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.Table"
+            For="@(() => Model.Table)"
+            Label="Table"
+            Required="true"
+            Variant="Variant.Outlined"/>
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.ColumnId"
+            For="@(() => Model.ColumnId)"
+            Label="Id column"
+            Required="true"
+            Variant="Variant.Outlined"/>
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.ColumnIdentity"
+            For="@(() => Model.ColumnIdentity)"
+            Label="Identity column"
+            Required="true"
+            Variant="Variant.Outlined"/>
+        
+       @if (Model is AuthProviderIdentityUserInput authProviderIdentityUserInput)
+       {
+            <MudTextField
+                T="string?"
+                @bind-Value="authProviderIdentityUserInput.ColumnPassword"
+                For="@(() => authProviderIdentityUserInput.ColumnPassword)"
+                Label="Password column"
+                Required="true"
+                Variant="Variant.Outlined"
+            />
+       }
+    </div>
+
+}
+else
+{
+    <div style="text-align: center" class="py-16">Please toggle control in tab to enable this table configration</div>
+}
+
+@code {
+    [Parameter]
+    public AuthProviderIdentityInput Model { get; set; }
+}

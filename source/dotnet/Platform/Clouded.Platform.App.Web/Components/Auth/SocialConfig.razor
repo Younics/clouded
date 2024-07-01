@@ -1,0 +1,53 @@
+<MudStack Row="@true" Spacing="2">
+    <MudItem xs="6">
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.Key"
+            For="@(() => Model.Key)"
+            Label="Key"
+            ReadOnly="@Readonly"
+            Variant="Variant.Outlined"/>
+    </MudItem>
+    <MudItem xs="6">
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.Secret"
+            For="@(() => Model.Secret)"
+            Label="Secret"
+            ReadOnly="@Readonly"
+            Variant="Variant.Outlined"/>
+    </MudItem>
+</MudStack>
+<MudStack Row="@true" Spacing="2">
+    <MudItem xs="6">
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.RedirectUrl"
+            For="@(() => Model.RedirectUrl)"
+            Label="Redirect URL"
+            ReadOnly="@Readonly"
+            Variant="Variant.Outlined"/>
+    </MudItem>
+    <MudItem xs="6">
+        <MudTextField
+            T="string?"
+            @bind-Value="Model.DeniedRedirectUrl"
+            For="@(() => Model.DeniedRedirectUrl)"
+            Label="Denied - Redirect URL"
+            ReadOnly="@Readonly"
+            Variant="Variant.Outlined"/>
+    </MudItem>
+</MudStack>
+
+@code {
+
+    [Parameter]
+    public bool Readonly { get; set; }
+
+    [Parameter, EditorRequired]
+    public AuthProviderSocialInput Model { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback<AuthProviderSocialInput> ModelChanged { get; set; }
+
+}

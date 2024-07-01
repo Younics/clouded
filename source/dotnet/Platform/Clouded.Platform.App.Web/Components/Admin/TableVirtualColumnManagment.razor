@@ -1,0 +1,123 @@
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Shared.Enums
+@if (VirtualColumn != null)
+{
+    <MudStack Class="flex-grow-1" Row="@true" AlignItems="AlignItems.Center">
+        <MudItem xs="2">
+            <MudStack Row="@false">
+                <MudSwitch
+                    Color="Color.Primary"
+                    T="bool"
+                    Label="Show"
+                    For="@(() => VirtualColumn.Enabled)"
+                    Checked="@VirtualColumn.Enabled"
+                    CheckedChanged="@(val => OnChangeInput(() => VirtualColumn.Enabled = val))"
+                    ReadOnly="@Readonly"/>
+
+                <MudNumericField
+                    T="int"
+                    Required="true"
+                    Variant="Variant.Outlined"
+                    Margin="Margin.Dense"
+                    Label="Order"
+                    Step="1"
+                    Min="1"
+                    ReadOnly="@Readonly"
+                    Value="@VirtualColumn.Order"
+                    ValueChanged="@(val => OnChangeInput(() => VirtualColumn.Order = val))"/>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="3">
+            <MudStack Row="@false">
+                <MudTextField
+                    T="string?"
+                    For="@(() => VirtualColumn.Name)"
+                    Value="@VirtualColumn.Name"
+                    ValueChanged="@(OnNameChangeInput)"
+                    Margin="Margin.Dense"
+                    ReadOnly="@Readonly"
+                    Label="Name"
+                    Variant="Variant.Outlined"/>
+
+                <MudSelect
+                    T="EVirtualColumnType"
+                    For="@(() => VirtualColumn.VirtualType)"
+                    Value="@VirtualColumn.VirtualType"
+                    ValueChanged="@(val => OnChangeInput(() => VirtualColumn.VirtualType = val))"
+                    Margin="Margin.Dense"
+                    Placeholder="Choose an option"
+                    Variant="Variant.Outlined"
+                    Label="Type"
+                    ReadOnly="@Readonly"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var columnType in Enum.GetValues<EVirtualColumnType>())
+                    {
+                        <MudSelectItem T="EVirtualColumnType" Value="@columnType">@(columnType)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="3">
+            <MudTextField
+                T="string?"
+                For="@(() => VirtualColumn.VirtualValue)"
+                Value="@VirtualColumn.VirtualValue"
+                ValueChanged="@(val => OnChangeInput(() => VirtualColumn.VirtualValue = val))"
+                Margin="Margin.Dense"
+                ReadOnly="@Readonly"
+                Label="Command"
+                Lines="4"
+                Variant="Variant.Outlined"/>
+        </MudItem>
+        <MudItem xs="2">
+            <MudStack Row="@false" Spacing="1">
+                <MudText>List restrictions</MudText>
+                <MudSwitch Color="Color.Primary"
+                           T="bool"
+                           Label="Visible"
+                           For="@(() => VirtualColumn.List.Readonly)"
+                           Checked="@VirtualColumn.List.Readonly"
+                           CheckedChanged="@(val => OnChangeInput(() => VirtualColumn.List.Readonly = val))"
+                           ReadOnly="@Readonly"/>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="2">
+            <MudStack Row="@false" Spacing="1">
+                <MudText>Detail restrictions</MudText>
+                <MudSwitch Color="Color.Primary"
+                           T="bool"
+                           Label="Visible"
+                           For="@(() => VirtualColumn.Detail.Visible)"
+                           Checked="@VirtualColumn.Detail.Visible"
+                           CheckedChanged="@(val => OnChangeInput(() => VirtualColumn.Detail.Visible = val))"
+                           ReadOnly="@Readonly"/>
+            </MudStack>
+        </MudItem>
+    </MudStack>
+}
+
+@code {
+
+    [Parameter]
+    public bool Readonly { get; set; } = true;
+
+    [Parameter]
+    public AdminProviderTableInput.AdminProviderTableColumnInput VirtualColumn { get; set; }
+
+    [Parameter]
+    public EventCallback<AdminProviderTableInput.AdminProviderTableColumnInput> VirtualColumnChanged { get; set; }
+
+    private async void OnChangeInput(Action action)
+    {
+        action.Invoke();
+        await VirtualColumnChanged.InvokeAsync(VirtualColumn);
+    }
+
+    private async void OnNameChangeInput(string val)
+    {
+        VirtualColumn.Name = val;
+        VirtualColumn.Column = val.ToLower().Replace(" ", "_");
+        await VirtualColumnChanged.InvokeAsync(VirtualColumn);
+    }
+
+}

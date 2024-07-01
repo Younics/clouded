@@ -1,0 +1,30 @@
+﻿@inherits LayoutComponentBase
+
+@if (_isAuthenticated != null)
+{
+    @if (!_isAuthenticated.Value)
+    {
+        <Redirect To="/"/>
+    }
+    else
+    {
+        <MudLayout>
+            @Body
+        </MudLayout>
+    }
+}
+
+@code {
+
+    private bool? _isAuthenticated;
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        _isAuthenticated = authState.User.Identities.Any();
+    }
+
+}

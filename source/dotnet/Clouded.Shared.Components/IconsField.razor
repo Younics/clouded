@@ -1,0 +1,62 @@
+@using System.Reflection
+@inherits MudAutocomplete<string?>
+
+@if (_icons.Any())
+{
+    <MudAutocomplete
+        T="string?"
+        ReadOnly="@ReadOnly"
+        Variant="@Variant"
+        Label="@Label"
+        Value="Value"
+        ValueChanged="ValueChanged"
+        SearchFunc="@((value) => IconSearchFunc(value))"
+        Placeholder="@Placeholder"
+        ResetValueOnEmptyText="@ResetValueOnEmptyText"
+        CoerceText="@CoerceText"
+        Clearable="@Clearable"
+        MinCharacters="@MinCharacters"
+        DebounceInterval="@DebounceInterval"
+        CoerceValue="@CoerceValue"
+        AdornmentIcon="@(ReadOnly ? null : Icons.Material.Filled.Search)">
+        <ItemTemplate Context="e">
+            <MudIcon Icon="@_icons.GetValueOrDefault(e)" Size="Size.Small"/>
+        </ItemTemplate>
+        <ItemSelectedTemplate Context="e">
+            <MudIcon Icon="@_icons.GetValueOrDefault(e)" Size="Size.Small"/>
+        </ItemSelectedTemplate>
+        <NoItemsTemplate>
+            <MudText Align="Align.Left" Class="px-4 py-1">
+                No items found
+            </MudText>
+        </NoItemsTemplate>
+    </MudAutocomplete>
+}
+
+@code {
+    private Dictionary<string, string> _icons = new();
+
+    protected override void OnInitialized()
+    {
+        _icons = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(fi => fi is { IsLiteral: true,IsInitOnly: false })
+            .Select(x => (new
+            {
+                key = x.Name,
+                value = (string)x.GetRawConstantValue()!
+            }))
+            .ToDictionary(x => x.key, x => x.value);
+    }
+
+    private Task<IEnumerable<string?>> IconSearchFunc(string arg)
+    {
+        if (Value != null && Value.Contains(arg, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<IEnumerable<string?>>(new List<string> { Value });
+        }
+
+        return Task.FromResult(_icons.Where(i => i.Key.Contains(arg, StringComparison.OrdinalIgnoreCase)).Select(i => i.Key));
+    }
+
+}

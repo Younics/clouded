@@ -1,0 +1,96 @@
+@page "/management/users/create"
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.Options
+@using Clouded.Auth.Provider.Management.Enums
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IUserDataSource UserDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Create user</MudText>
+        </MudItem>
+        <MudItem sm="12" md="6" lg="5">
+            <MudPaper Class="pa-2">
+                <MudText
+                    Class="mud-background rounded px-4 py-1 mb-2"
+                    Typo="Typo.h6">
+                    User attributes
+                </MudText>
+                <GenericFields
+                  TDictionary="UserDictionary"
+                    Mode="EGenericFieldMode.Create"
+                    Columns="@_userColumns.Where(column => column.Name != Options.Clouded.Auth.Identity.User.ColumnId)"
+                    PasswordColumnName="@Options.Clouded.Auth.Identity.User.ColumnPassword"
+                    @bind-Data="_user"/>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem sm="12" md="6" lg="5">
+            <MetaDataManager
+                @bind-MetaData="_userMetaData"/>
+        </MudItem>
+
+        <MudItem Class="d-flex justify-between" xs="12">
+            <MudButton
+                HtmlTag="a"
+                Href="/management/users"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <MudButton
+                OnClick="Create"
+                StartIcon="@Icons.Material.Filled.Check"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary"
+                Class="ml-auto">
+                Create
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private bool _initiallyLoaded;
+
+    private IEnumerable<ColumnResult> _userColumns = null!;
+    private UserDictionary _user = new();
+    private Dictionary<string, object?> _userMetaData = new();
+
+    protected override void OnInitialized()
+    {
+        _userColumns = UserDataSource
+            .GetEntityColumns()
+            .Where
+            (
+                column => column.Name != Options.Clouded.Auth.Identity.User.ColumnId
+            );
+
+        _initiallyLoaded = true;
+    }
+
+    private void Create()
+    {
+        var user = UserDataSource.EntityCreate(_user);
+        UserDataSource.EntityMetaDataUpdate
+        (
+            user.Id,
+            _userMetaData
+        );
+
+        if (_user.Password == null)
+            _user.Remove(Options.Clouded.Auth.Identity.User.ColumnPassword);
+
+        Snackbar.Add("Created", Severity.Success);
+        NavigationManager.NavigateTo("/management/users");
+    }
+
+}

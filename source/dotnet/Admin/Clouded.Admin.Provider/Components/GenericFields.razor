@@ -1,0 +1,86 @@
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Admin.Provider.Contexts
+
+@inject ApplicationOptions ApplicationOptions
+
+<EditForm Model="@Data">
+    <DataAnnotationsValidator/>
+    <MudGrid Spacing="1">
+        @foreach (var columnOptions in Options.Columns.Where(column => FormType == FormType.Read ? column.Detail.Visible : column.Create.Visible).OrderBy(x => x.Order))
+        {
+            var column = Columns.FirstOrDefault(x => x.Name == columnOptions.Column);
+
+            if (column != null)
+                Data.TryAdd(column.Name, default);
+
+            var relation = column != null ? Relations.FirstOrDefault(x => x.Column == column.Name) : null;
+
+            <MudItem xs="12">
+                @if (column != null)
+                {
+                    <GenericField
+                        FormType="FormType"
+                        Context="@Context"
+                        IsInDrawer="@IsInDrawer"
+                        Column="@column"
+                        TableOptions="@Options"
+                        Relation="@relation"
+                        ColumnOptions="@columnOptions"
+                        ForceReadonly="@(PrefillEntityParam == column?.Name)"
+                        @bind-Value="Data[column.Name]"/>
+                }
+                else
+                {
+                    <GenericField
+                        FormType="FormType"
+                        Context="@Context"
+                        IsInDrawer="@IsInDrawer"
+                        TableOptions="@Options"
+                        Column="@null"
+                        Relation="@null"
+                        ColumnOptions="@columnOptions"
+                        ForceReadonly="@true"
+                        Value="columnOptions.GetVirtualFieldValue(Data)"/>
+                }
+            </MudItem>
+        }
+    </MudGrid>
+</EditForm>
+
+@code {
+
+    [Parameter]
+    public required FormType FormType { get; set; }
+
+    [Parameter]
+    public required TableOptions Options { get; set; }
+
+    [Parameter]
+    public required AdminContext Context { get; set; }
+
+    [Parameter]
+    public required IEnumerable<ColumnResult> Columns { get; set; }
+
+    [Parameter]
+    public required IEnumerable<RelationResult> Relations { get; set; }
+
+    [Parameter]
+    public required DataSourceDictionary Data { get; set; }
+
+    [Parameter]
+    public bool IsInDrawer { get; set; }
+
+    [Parameter]
+    public string? PrefillEntityParam { get; set; }
+
+    [Parameter]
+    public EventCallback<DataSourceDictionary>? DataChanged { get; set; }
+
+    private void SetValue(string columnName, object? columnValue)
+    {
+        Data[columnName] = columnValue;
+        DataChanged?.InvokeAsync(Data);
+    }
+
+}

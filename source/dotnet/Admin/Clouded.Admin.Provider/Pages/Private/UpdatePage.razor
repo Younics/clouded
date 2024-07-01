@@ -1,0 +1,137 @@
+@page "/management/{TableName}/edit"
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Core.DataSource.Shared
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Primitives
+@using Clouded.Admin.Provider.Contexts
+@using Clouded.Core.DataSource.Shared.Enums
+@using Clouded.Core.DataSource.Shared.Input
+@using Clouded.Shared.Enums
+@attribute [Authorize]
+@inject ApplicationOptions Options
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+@if (_table != null && _entity.Any())
+{
+    <UpdateForm
+        FormType="@FormType.Update"
+        IsDetail="@false"
+        Table="@_table"
+        Context="@_context"
+        Columns="@_columns"
+        InsideRelations="@_insideRelations"
+        OutsideRelations="@_outsideRelations"
+        Entity="@_entity"
+        PrimaryKeys="@_primaryKeys"
+        Tables="@_tables"
+        OnCancelClb="@(() => NavigationManager.NavigateTo(_entity.ToEntityDetailUri(_columns ?? Array.Empty<ColumnResult>(), $"/management/{_table.Table}/detail")))"
+        OnSubmitClb="@(() => NavigationManager.NavigateTo(_entity.ToEntityDetailUri(_columns ?? Array.Empty<ColumnResult>(), $"/management/{_table.Table}/detail")))"/>
+}
+
+@code
+{
+    [Parameter]
+    public string? TableName { get; set; }
+
+    private List<DataSourceOptions> _dataSources = new();
+    private List<TableOptions> _tables = new();
+
+    private DataSourceOptions? _dataSource;
+    private TableOptions? _table;
+    private IEnumerable<ColumnResult>? _columns;
+    private IEnumerable<RelationResult>? _insideRelations;
+    private IEnumerable<RelationResult>? _outsideRelations;
+    private AdminContext? _context;
+
+    private Dictionary<string, StringValues>? _primaryKeys;
+    private DataSourceDictionary _entity = new();
+
+    protected override void OnInitialized()
+    {
+        _dataSources = Options.Clouded.DataSources.ToList();
+        _tables = Options.Clouded.Admin.Tables.ToList();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (TableName == null || _tables.All(x => x.Table != TableName))
+        {
+            NavigationManager.NavigateTo("/"); // TODO
+            return;
+        }
+
+        _table = _tables.First(x => x.Table == TableName);
+        _dataSource = _dataSources.First(x => x.Id == _table.DataSourceId);
+
+        _context = new AdminContext
+            (
+            new Connection
+            {
+                Type = _dataSource.Type,
+                Server = _dataSource.Server,
+                Port = _dataSource.Port,
+                Username = _dataSource.Username,
+                Password = _dataSource.Password,
+                Database = _dataSource.Database
+            },
+            Snackbar
+            );
+
+        _columns = _context.GetColumns(_table.Schema, _table.Table);
+        _insideRelations = _context.GetInsideRelations(_table.Schema, _table.Table);
+        _outsideRelations = _context.GetOutsideRelations(_table.Schema, _table.Table);
+
+        var query = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query;
+        _primaryKeys = QueryHelpers.ParseQuery(query);
+
+        LoadEntity();
+    }
+
+    private void LoadEntity()
+    {
+        if (_table == null || _columns == null || _primaryKeys == null || _context == null)
+            return;
+
+        _entity = _context.SelectSingle
+            (
+                new SelectInput
+                {
+                    Schema = _table.Schema,
+                    Table = _table.Table,
+                    Alias = _table.Table,
+                    SelectedColumns = _table.Columns.Where(c => c.Type != ETableColumnType.Virtual).Select(x => new SelectColDesc { ColJoin = new[] { _table.Table, x.Column } }).ToArray(),
+                    Where = new ConditionAndInput
+                    {
+                        Conditions = ColumnHelper.Where(_table.Table, _primaryKeys, _columns)
+                    }
+                }
+            );
+
+
+        if (_insideRelations != null)
+        {
+            foreach (var insideRelation in _insideRelations)
+            {
+                _entity[insideRelation.Column] = _context.SelectSingle
+                    (
+                        new SelectInput
+                        {
+                            Schema = insideRelation.TargetSchema,
+                            Table = insideRelation.TargetTable,
+                            Alias = insideRelation.TargetTable,
+                            Where = new ConditionValueInput
+                            {
+                                Column = insideRelation.TargetColumn,
+                                Alias = insideRelation.TargetTable,
+                                Operator = EOperator.Equals,
+                                Value = _entity[insideRelation.Column],
+                            }
+                        }
+                    );
+            }
+        }
+    }
+
+
+}

@@ -1,0 +1,100 @@
+version: "3.8"
+
+services:
+  auth_service:
+    container_name: clouded_service_auth
+    build:
+      context: ../
+      dockerfile: Auth/Clouded.Auth.Provider/Dockerfile
+    restart: unless-stopped
+    environment:
+      DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: "false"
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://*:8001
+      # DataSource
+      Clouded__DataSource__Type: "Postgres"
+      Clouded__DataSource__Server: "database_postgres"
+      Clouded__DataSource__Port: 5432
+      Clouded__DataSource__Username: "root"
+      Clouded__DataSource__Password: "secret"
+      Clouded__DataSource__Database: "clouded"
+      # Auth
+      Clouded__Auth__ApiKey: "GXvxVmRpZouoT5sQMews7mpP9duBAkGGmrr2jsUJ8JbF3w7pDqmEbFwQ3f5qAa73ATdfmEKiJjDq6qdr2fmQ8p2gthDg4RujapA9atKTjhxQ888taYkkgZ3fP5KSB5nh"
+      # Auth - Hash
+      Clouded__Auth__Hash__Argon2__Secret: "NZsVUrKAeBynQynVYLuBX8H9HjimTFk46vYbHNdb758Sc7MB23LuZvX7ky79pxBU"
+      Clouded__Auth__Hash__Argon2__Type: "DataIndependentAddressing"
+      Clouded__Auth__Hash__Argon2__Version: "Nineteen"
+      Clouded__Auth__Hash__Argon2__DegreeOfParallelism: 8
+      Clouded__Auth__Hash__Argon2__MemorySize: 32768
+      Clouded__Auth__Hash__Argon2__Iterations: 4
+      Clouded__Auth__Hash__Argon2__ReturnBytes: 128
+      # Auth - Token 
+      Clouded__Auth__Token__ValidIssuer: "http://localhost:8001"
+      Clouded__Auth__Token__ValidateIssuer: "true"
+      Clouded__Auth__Token__ValidAudience: "Clouded"
+      Clouded__Auth__Token__ValidateAudience: "true"
+      Clouded__Auth__Token__ValidateIssuerSigningKey: "true"
+      Clouded__Auth__Token__Secret: "NgHVWDMtnwd2yvJtRJyGPNvLZTxs6YPGGjfoeQ7wHS8JdpDrw9aA8jv98VnNdmKNsqupjpuKsR5iUa7Vm6Zjfnt2fqfwzLzrnZjGHnLuMctG4xsAyL6QwkcJ5TQwCcQW"
+      Clouded__Auth__Token__AccessTokenExpiration: 86400
+      Clouded__Auth__Token__RefreshTokenExpiration: 432000
+      # Auth - Identity - User
+      Clouded__Auth__Identity__User__Schema: "public"
+      Clouded__Auth__Identity__User__Table: "auths"
+      Clouded__Auth__Identity__User__ColumnId: "id"
+      Clouded__Auth__Identity__User__ColumnIdentity: "email"
+      Clouded__Auth__Identity__User__ColumnPassword: "password"
+      # Auth - Identity - Role
+      Clouded__Auth__Identity__Role__Schema: "public"
+      Clouded__Auth__Identity__Role__Table: "roles"
+      Clouded__Auth__Identity__Role__ColumnId: "id"
+      Clouded__Auth__Identity__Role__ColumnIdentity: "name"
+      # Auth - Identity - Permission
+      Clouded__Auth__Identity__Permission__Schema: "public"
+      Clouded__Auth__Identity__Permission__Table: "permissions"
+      Clouded__Auth__Identity__Permission__ColumnId: "id"
+      Clouded__Auth__Identity__Permission__ColumnIdentity: "name"
+    ports:
+      - "8001:8001"
+    networks:
+      - clouded_network
+
+  database_postgres:
+    container_name: clouded_database_postgres
+    image: postgres:latest
+#    command: postgres -c 'max_connections=500'
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: clouded
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    networks:
+      - clouded_network
+    volumes:
+      - postgres_volume:/var/lib/postgresql/data
+  
+  database_mysql:
+    container_name: clouded_database_mysql
+    image: mysql:latest
+    environment:
+      LANG: C.UTF-8
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: clouded
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    networks:
+      - clouded_network
+    volumes:
+      - mysql_volume:/var/lib/mysql
+
+volumes:
+  postgres_volume:
+    driver: local
+  mysql_volume:
+    driver: local
+    
+networks:
+  clouded_network:
+    external: true

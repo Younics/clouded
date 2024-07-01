@@ -1,0 +1,21 @@
+{
+  "name": "@younics/clouded-auth-demo-project",
+  "version": "1.0.0",
+  "description": "Clouded Auth library Demo project",
+  "main": "src/app.ts",
+  "author": "Younics",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "^18.14.0",
+    "@younics/clouded-auth-client": "file:../Clouded.Auth.Library",
+    "typescript": "^4.9.5"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./bin/app.js",
+    "dev": "ts-node ./src/app.ts"
+  }
+}

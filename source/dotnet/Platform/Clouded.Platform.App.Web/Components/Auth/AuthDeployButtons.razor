@@ -1,0 +1,98 @@
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inject IAuthProviderService AuthProviderService
+@inject IDialogService DialogService
+@inject IDbContextResolver DbContextResolver
+@inject ISnackbar SnackbarService
+@inject IJSRuntime Js
+
+@if (FullText)
+{
+    <MudButton
+        OnClick="@HandleDeployClick"
+        Color="Color.Secondary"
+        StartIcon="@Icons.Material.Filled.Upload"
+        Variant="Variant.Filled">
+        @_deployText
+    </MudButton>
+    <MudButton
+        OnClick="@HandleSelfDeployClick"
+        Color="Color.Secondary"
+        StartIcon="@Icons.Material.Filled.Download"
+        Variant="Variant.Filled">
+        Self-deploy
+    </MudButton>
+}
+else
+{
+    <MudTooltip Arrow="true" Text="@_deployText">
+        <MudIconButton
+            Icon="@Icons.Material.Filled.Upload"
+            Color="Color.Secondary"
+            Size="Size.Medium"
+            Variant="Variant.Filled"
+            OnClick="@(HandleDeployClick)"/>
+    </MudTooltip>
+    <MudTooltip Arrow="true" Text="Download deploy">
+        <MudIconButton
+            Icon="@Icons.Material.Filled.Download"
+            Color="Color.Secondary"
+            Size="Size.Medium"
+            Variant="Variant.Filled"
+            OnClick="@(HandleSelfDeployClick)"/>
+    </MudTooltip>
+}
+
+
+@code {
+
+    [Parameter]
+    public AuthProviderEntity Entity { get; set; } = null!;
+
+    [Parameter]
+    public HubConnection? ProviderHub { get; set; }
+
+    [Parameter]
+    public bool FullText { get; set; } = false;
+
+    private CloudedDbContext _dbContext = null!;
+    private string _deployText = null!;
+
+    protected override void OnInitialized()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+        _deployText = "Deploy";
+
+        if (Entity.IsDeployed())
+        {
+            _deployText = "Re-Deploy";
+        }
+    }
+
+    private async Task HandleDeployClick()
+    {
+        var dialog = Entity.IsDeployed() ? await DialogService.ShowAsync<ReDeploymentDialog>() : await DialogService.ShowAsync<DeploymentDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled && ProviderHub != null)
+        {
+            await AuthProviderService.Deploy(Entity, ProviderHub,SnackbarService, new CancellationToken());
+        }
+    }
+
+    private async Task HandleSelfDeployClick()
+    {
+        var dialog = await DialogService.ShowAsync<SelfDeploymentDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var fileStream = await AuthProviderService.SelfDeploy(Entity);
+            SnackbarService.Add("Download of your deployment script starts soon", Severity.Success);
+
+            var streamRef = new DotNetStreamReference(fileStream);
+            await Js.InvokeVoidAsync("downloadFileFromStream", "deploy.zip", streamRef);
+        }
+    }
+
+}

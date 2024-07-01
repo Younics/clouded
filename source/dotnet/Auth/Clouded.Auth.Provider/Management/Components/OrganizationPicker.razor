@@ -1,0 +1,65 @@
+@using Clouded.Auth.Provider.Options
+@using Clouded.Auth.Provider.Dictionaries
+@inject ApplicationOptions Options
+
+@if (Organizations.Any())
+{
+    <MudAutocomplete
+        Class="@Class"
+        Style="@Style"
+        Dense="true"
+        Margin="Margin.Dense"
+        T="OrganizationDictionary"
+        Label="Selected organization"
+        Variant="Variant.Outlined"
+        Value="SelectedOrganization"
+        ValueChanged="OnSelectionChanged"
+        ToStringFunc="@OrganizationConverter"
+        SearchFunc="@OrganizationsSearch"
+        Clearable="true"
+        ResetValueOnEmptyText="true"
+        CoerceText="true"/>
+}
+
+@code {
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Style { get; set; }
+
+    [Parameter]
+    public required IEnumerable<OrganizationDictionary> Organizations { get; set; }
+
+    [Parameter]
+    public OrganizationDictionary? SelectedOrganization { get; set; }
+
+    [Parameter]
+    public EventCallback<OrganizationDictionary?>? SelectedOrganizationChanged { get; set; }
+
+    private Func<OrganizationDictionary?, string> OrganizationConverter =>
+        organization =>
+            organization != null
+                ? organization.Identity?.ToString() ?? string.Empty
+                : string.Empty;
+
+    private Task<IEnumerable<OrganizationDictionary>> OrganizationsSearch(string value) =>
+        Task.FromResult
+            (
+                !string.IsNullOrEmpty(value)
+                    ? Organizations.Where
+                        (
+                            organization =>
+                                organization.Identity
+                                    .ToString()?
+                                    .Contains(value, StringComparison.InvariantCultureIgnoreCase)
+                                ?? false
+                        )
+                    : Organizations
+            );
+
+    private void OnSelectionChanged(OrganizationDictionary? organization) =>
+        SelectedOrganizationChanged?.InvokeAsync(organization);
+
+}

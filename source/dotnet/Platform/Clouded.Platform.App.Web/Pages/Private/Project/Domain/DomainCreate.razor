@@ -1,0 +1,42 @@
+@page "/projects/{ProjectId}/domains/create"
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@inject IDomainService DomainService
+@inject ISnackbar Snackbar
+
+<PageTitle>@Project.Name | Domains - Create</PageTitle>
+
+<DomainForm Readonly="false" Title="Create new domain" Model="_input" OnValidSubmit="OnValidSubmit" ProjectId="@ProjectId"/>
+
+@code {
+
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private readonly DomainInput _input = new();
+
+    protected override void OnInitialized()
+    {
+        _input.ProjectId = Project.Id;
+    }
+
+    private async Task OnValidSubmit()
+    {
+        var dataSource = await DomainService.CreateAsync(_input, cancellationToken: CancellationToken);
+
+        if (dataSource != null)
+        {
+            Snackbar.Add("Domain created", Severity.Success);
+            DomainService.GetListRoute(ProjectId);
+        }
+        else
+        {
+            Snackbar.Add("There was an error creating domain");
+        }
+    }
+
+}

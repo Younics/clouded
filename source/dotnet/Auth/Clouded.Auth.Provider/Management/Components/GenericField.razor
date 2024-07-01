@@ -1,0 +1,352 @@
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Shared
+@using Clouded.Auth.Provider.Management.Enums
+@using Clouded.Core.DataSource.Api.Helpers
+@using Clouded.Shared.Enums
+@using MimeDetective
+@using MimeDetective.Definitions
+@using MimeDetective.Definitions.Licensing
+
+@inject ISnackbar Snackbar
+@inject IJSRuntime Js
+
+@if (Mode is EGenericFieldMode.View)
+{
+    <MudField
+        Label="@Name.ToReadCase()"
+        ReadOnly="true"
+        HelperText="Read only attribute"
+        Variant="Variant.Outlined">
+        @Value
+    </MudField>
+}
+else
+{
+    switch (Type)
+    {
+        case EColumnType.Boolean:
+            <MudSwitch
+                T="bool"
+                Label="@Name.ToReadCase()"
+                ReadOnly="ReadOnly"
+                Checked="ResolveColumnValue<bool>(Type, Value)"
+                CheckedChanged="b => SetValue(b)"/>
+            break;
+        case EColumnType.Char:
+            <MudTextField
+                T="char"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                ReadOnly="ReadOnly"
+                InputType="@(IsPassword ? InputType.Password : InputType.Text)"
+                Value="ResolveColumnValue<char>(Type, Value)"
+                ValueChanged="c => SetValue(c)"/>
+            break;
+        case EColumnType.Varchar:
+        case EColumnType.Text:
+            <MudTextField
+                T="string"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                ReadOnly="ReadOnly"
+                InputType="@(IsPassword ? InputType.Password : InputType.Text)"
+                Value="ResolveColumnValue<string>(Type, Value)"
+                ValueChanged="SetValue"/>
+            break;
+        case EColumnType.Int:
+            <MudNumericField
+                T="int"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                Step="1"
+                ReadOnly="ReadOnly"
+                Value="ResolveColumnValue<int>(Type, Value)"
+                ValueChanged="i => SetValue(i)"/>
+            break;
+        case EColumnType.Long:
+            <MudNumericField
+                T="long"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                Step="1"
+                ReadOnly="ReadOnly"
+                Value="ResolveColumnValue<long>(Type, Value)"
+                ValueChanged="l => SetValue(l)"/>
+            break;
+        case EColumnType.Double:
+            <MudNumericField
+                T="float"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                Step="0.1F"
+                ReadOnly="ReadOnly"
+                Value="ResolveColumnValue<float>(Type, Value)"
+                ValueChanged="f => SetValue(f)"/>
+            break;
+        case EColumnType.Decimal:
+            <MudNumericField
+                T="decimal"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                Step="0.1M"
+                ReadOnly="ReadOnly"
+                Value="ResolveColumnValue<decimal>(Type, Value)"
+                ValueChanged="d => SetValue(d)"/>
+            break;
+        case EColumnType.Time:
+            <MudTimePicker
+                T="TimeSpan?"
+                @ref="_timePicker"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                Editable="true"
+                ReadOnly="ReadOnly"
+                Time="ResolveColumnValue<TimeSpan?>(Type, Value)"
+                TimeChanged="timespan => SetValue(timespan)">
+                <PickerActions>
+                    <MudButton Class="mr-auto align-self-start" OnClick="@(() => _timePicker!.Clear())">Clear</MudButton>
+                </PickerActions>
+            </MudTimePicker>
+            break;
+        case EColumnType.Date:
+            <MudDatePicker
+                T="DateTime?"
+                @ref="_datePicker"
+                Variant="Variant.Outlined"
+                Label="@Name.ToReadCase()"
+                DateFormat="dd.MM.yyyy"
+                ReadOnly="ReadOnly"
+                Date="ResolveColumnValue<DateTime?>(Type, Value)"
+                DateChanged="datetime => SetValue(datetime)">
+                <PickerActions>
+                    <MudButton Class="mr-auto align-self-start" OnClick="@(() => _datePicker!.Clear())">Clear</MudButton>
+                </PickerActions>
+            </MudDatePicker>
+            break;
+        case EColumnType.DateTime:
+            <MudStack Row="@true">
+                <MudDatePicker
+                    T="DateTime?"
+                    @ref="_datePicker"
+                    Variant="Variant.Outlined"
+                    Label="@Name.ToReadCase()"
+                    DateFormat="dd.MM.yyyy"
+                    ReadOnly="ReadOnly"
+                    Date="ResolveColumnValue<DateTime?>(Type, Value)"
+                    DateChanged="datetime => SetValue(DateTimeChangeTime(datetime, ((DateTime?)Value ?? DateTime.UtcNow).TimeOfDay))">
+                    <PickerActions>
+                        <MudButton Class="mr-auto align-self-start" OnClick="@(() => _datePicker!.Clear())">Clear</MudButton>
+                    </PickerActions>
+                </MudDatePicker>
+                <MudTimePicker
+                    T="TimeSpan?"
+                    @ref="_timePicker"
+                    Variant="Variant.Outlined"
+                    Editable="true"
+                    ReadOnly="ReadOnly"
+                    Time="ResolveColumnValue<DateTime?>(Type, Value)?.TimeOfDay"
+                    TimeChanged="timespan => SetValue(DateTimeChangeTime((DateTime?)Value, timespan))">
+                    <PickerActions>
+                        <MudButton Class="mr-auto align-self-start" OnClick="@(() => _timePicker!.Clear())">Clear</MudButton>
+                    </PickerActions>
+                </MudTimePicker>
+            </MudStack>
+            break;
+
+        case EColumnType.Bytea:
+            <MudStack Row="@true">
+                <MudText>
+                    @Name
+                </MudText>
+                @if (Value != null)
+                {
+                    <div>
+                        <MudTooltip Arrow="@true" Text="Download">
+                            <MudIconButton
+                                Variant="Variant.Filled"
+                                Color="Color.Tertiary"
+                                OnClick="@DownloadFile"
+                                Icon="@Icons.Material.Filled.Download"/>
+                        </MudTooltip>
+                    </div>
+                }
+
+                @if (Mode != EGenericFieldMode.View)
+                {
+                    @if (Value != null)
+                    {
+                        <div>
+                            <MudTooltip Arrow="@true" Text="Clear">
+                                <MudIconButton
+                                    HtmlTag="button"
+                                    Variant="Variant.Filled"
+                                    Color="Color.Secondary"
+                                    @onclick="ClearFile"
+                                    Icon="@Icons.Material.Filled.Clear">
+                                </MudIconButton>
+                            </MudTooltip>
+                        </div>
+                    }
+
+                    <MudFileUpload
+                        Class="mt-0"
+                        T="IBrowserFile"
+                        FilesChanged="SetFile"
+                        @ref="FileUpload">
+                        <ButtonTemplate>
+                            <MudButton
+                                HtmlTag="label"
+                                Variant="Variant.Filled"
+                                Color="Color.Primary"
+                                StartIcon="@Icons.Material.Filled.CloudUpload"
+                                for="@context">
+                                Load file
+                            </MudButton>
+                        </ButtonTemplate>
+                        <SelectedTemplate>
+                            @if (context != null)
+                            {
+                                <MudText>@context.Name</MudText>
+                            }
+                            else
+                            {
+                                <MudText>No selected file</MudText>
+                            }
+                        </SelectedTemplate>
+                    </MudFileUpload>
+                }
+            </MudStack>
+            break;
+
+        case EColumnType.Unsupported:
+            <MudAlert Severity="Severity.Warning">Unsupported column type for column: @Name</MudAlert>
+            break;
+    }
+}
+
+
+@code {
+
+    [Parameter]
+    public required string? Name { get; set; }
+
+    [Parameter]
+    public EColumnType Type { get; set; }
+
+    [Parameter]
+    public object? Value { get; set; }
+
+    [Parameter]
+    public EventCallback<object?>? ValueChanged { get; set; }
+
+    [Parameter]
+    public EGenericFieldMode Mode { get; set; }
+
+    private bool ReadOnly =>
+        Mode is EGenericFieldMode.View;
+
+    [Parameter]
+    public bool IsPassword { get; set; }
+
+    private MudFileUpload<IBrowserFile?>? FileUpload { get; set; }
+    private string? _trustedFileNameForFileStorage;
+    private MudDatePicker? _datePicker;
+    private MudTimePicker? _timePicker;
+
+    private void SetValue(object? value)
+    {
+        Value = value;
+        ValueChanged?.InvokeAsync(Value);
+    }
+
+    private DateTime? DateTimeChangeTime(DateTime? dateTime, TimeSpan? time) =>
+        !time.HasValue ? dateTime : dateTime.ChangeTime(time.Value);
+
+    private T? ResolveColumnValue<T>(EColumnType? type, object? value)
+    {
+        if (Mode == EGenericFieldMode.Create && value == null)
+        {
+            if (type is EColumnType.Date or EColumnType.DateTime)
+            {
+                SetValue(value = DateTime.UtcNow);
+                return (T?)value;
+            }
+        }
+
+        value = ColumnHelper.ResolveColumnValue<T>(type, value);
+
+        return (T?)value;
+    }
+
+    private async void DownloadFile()
+    {
+        if (Value == null)
+        {
+            return;
+        }
+
+        byte[] fileBytes;
+        if (Value is string value)
+        {
+            fileBytes = await File.ReadAllBytesAsync(value);
+        }
+        else
+        {
+            fileBytes = Value! as byte[];
+        }
+
+        var inspector = new ContentInspectorBuilder
+        {
+            Definitions = new ExhaustiveBuilder
+            {
+                UsageType = UsageType.PersonalNonCommercial
+            }.Build()
+        }.Build();
+
+        var results = inspector.Inspect(fileBytes!);
+        var resultsByFileExtension = results.ByFileExtension();
+        var fileName = "file." + resultsByFileExtension.First().Extension;
+
+        var fileStream = new MemoryStream(fileBytes!);
+        var streamRef = new DotNetStreamReference(fileStream);
+
+        await Js.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+
+    private void ClearFile()
+    {
+        SetValue(null);
+        FileUpload.Reset();
+    }
+
+    private async void SetFile(IBrowserFile file)
+    {
+        if (_trustedFileNameForFileStorage != null)
+        {
+    // already uploaded tmp file
+            var alreadyUploadedFilePath = FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage);
+            File.Delete(alreadyUploadedFilePath);
+        }
+
+        _trustedFileNameForFileStorage = Path.GetRandomFileName();
+        var path = FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await using FileStream fs = new(path, FileMode.Create);
+        try
+        {
+    // max 20MB
+            await file.OpenReadStream(20000 * 1024).CopyToAsync(fs);
+        }
+        catch
+        {
+            Snackbar.Add("Maximum file size 20MB exceeded", Severity.Error);
+            File.Delete(FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage));
+            _trustedFileNameForFileStorage = null;
+        }
+
+        Value = path;
+
+        ValueChanged?.InvokeAsync(Value);
+    }
+
+}

@@ -1,0 +1,101 @@
+﻿@inject IMapper Mapper
+@using Clouded.Platform.Database.Entities.Clouded
+@using AutoMapper
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Models.Dtos.Hub
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/authentications/{AuthProviderId}"
+@inject ApplicationOptions ApplicationOptions
+@inject IAuthProviderService AuthProviderService
+@inject IDbContextResolver DbContextResolver
+@inject ISnackbar Snackbar
+@inject IStorageService StorageService
+
+<PageTitle>@Project.Name | Authentication Provider - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <AuthForm ProviderHub="_providerHub" Readonly="@true" Title="Authentication Provider detail" Model="@Input" ProjectId="@ProjectId" OnValidSubmit="OnValidSubmit"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string AuthProviderId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private AuthProviderInput? Input { get; set; }
+
+    private HubConnection _providerHub;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authProviderEntity = await DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAsync<AuthProviderEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(AuthProviderId),
+                CancellationToken
+            );
+
+
+        if (authProviderEntity != null)
+        {
+            var input = Mapper.Map<AuthProviderInput>(authProviderEntity);
+
+            AuthProviderService.PrepareInput(authProviderEntity, input);
+
+            Input = input;
+
+            _providerHub = AuthProviderService.GetProviderHub(StorageService);
+
+            _providerHub.On<HubProviderProcessingOutput>
+                (
+                    nameof(HubProviderProcessingOutput),
+                    output =>
+                    {
+                        if (!output.Success)
+                        {
+                            Snackbar.Add(output.ErrorMessage, Severity.Error);
+                            return;
+                        }
+
+                        if (output.DeployedAt != null)
+                        {
+                            authProviderEntity.DeployedAt = output.DeployedAt;
+                        }
+
+                        Snackbar.Add(output.SuccessMessage, Severity.Success);
+
+                        InvokeAsync(StateHasChanged);
+                    }
+                );
+
+            _providerHub.On<HubProviderUpdateStatus>
+                (
+                    nameof(HubProviderUpdateStatus),
+                    output =>
+                    {
+                        if (output.DeployAt != null && DateTime.Compare((DateTime)authProviderEntity.DeployedAt, (DateTime)output.DeployAt) == 0)
+                        {
+                            authProviderEntity.Status = output.Status;
+
+                            InvokeAsync(StateHasChanged);
+                        }
+                    }
+                );
+
+            await _providerHub.StartAsync();
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+    }
+}

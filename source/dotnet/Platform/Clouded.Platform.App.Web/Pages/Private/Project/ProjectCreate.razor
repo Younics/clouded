@@ -1,0 +1,97 @@
+﻿@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Database.Entities.Clouded
+@inherits CancellableComponentBase
+@layout PrivateLayout
+@page "/projects/create"
+@inject IDbContextResolver DbContextResolver
+@inject IProjectService ProjectService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>Projects - Create</PageTitle>
+
+<MudText Typo="Typo.h2">Create new project</MudText>
+
+<EditForm Model="@_input" OnValidSubmit="OnValidSubmit">
+    <FluentValidationValidator />
+    <div Class="d-flex flex-column gap-4">
+        <MudTextField 
+            T="string?"
+            @bind-Value="_input.Name"
+            For="@(() => _input.Name)"
+            TextChanged="OnNameChanged"
+            Immediate="true"
+            Label="Name" 
+            Required="true"
+            Variant="Variant.Outlined"
+        />
+        <MudSelect
+            T="long?"
+            @bind-Value="_input.RegionId"
+            For="@(() => _input.RegionId)"
+            Label="Region"
+            Required="true"
+            Variant="Variant.Outlined"
+            AnchorOrigin="Origin.BottomCenter">
+            @foreach (var region in _regions)
+            {
+                <MudSelectItem Value="@((long?)region.Id)">@($"{region.City}, {region.State}")</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTextField
+            T="string?"
+            @bind-Value="_input.Description"
+            For="@(() => _input.Description)"
+            Label="Description" 
+            Variant="Variant.Outlined"
+            Lines="5"
+        />
+        
+        <ValidationSummary />
+
+        <MudButton
+            ButtonType="ButtonType.Submit"
+            Variant="Variant.Filled"
+            Color="Color.Primary"
+            Size="Size.Large"
+            FullWidth="true">
+            Create
+        </MudButton>
+    </div>
+</EditForm>
+
+@code
+{
+    private MudTextField<string?> _codeTextField = null!;
+    
+    private readonly ProjectInput _input = new();
+
+    private IEnumerable<RegionEntity> _regions = null!;
+
+    protected override void OnInitialized()
+    {
+        _regions = DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAll<RegionEntity>()
+            .AsEnumerable();
+    }
+
+    private void OnNameChanged(string? name) => 
+        _codeTextField.SetText(name?.ToLower().Replace(' ', '-'));
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        var project = await ProjectService.Create(_input, cancellationToken: CancellationToken);
+
+        if (project != null)
+        {
+            Snackbar.Add("Dobre je", Severity.Success);
+            NavigationManager.NavigateTo("/projects");
+        }
+        else
+        {
+            Snackbar.Add("Daco se pokazilo");
+        }
+    }
+}

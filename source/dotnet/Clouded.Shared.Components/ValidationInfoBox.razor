@@ -1,0 +1,13 @@
+@using System.Linq.Expressions
+@typeparam T
+
+<MudText GutterBottom="@true" Typo="Typo.body2" Color="@Color.Error">
+    <ValidationMessage For="@For"/>
+</MudText>
+
+@code {
+
+    [Parameter]
+    public Expression<Func<T>>? For { get; set; }
+
+}

@@ -1,0 +1,112 @@
+@page "/management/machines/create"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@using Clouded.Auth.Provider.Dictionaries.Enums
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IMachineDataSource MachineDataSource
+
+<MudGrid Spacing="4">
+    <MudItem xs="12">
+        <MudText Typo="Typo.h2">Create Machine</MudText>
+    </MudItem>
+    <MudItem sm="12" md="6" lg="5">
+        <MudPaper Class="pa-2">
+            <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Machine attributes</MudText>
+            <EditForm Model="@_machine">
+                <DataAnnotationsValidator/>
+                <MudGrid Spacing="1">
+                    <MudItem xs="12">
+                        <MudTextField
+                            T="string?"
+                            Value="(string?)_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine.ColumnIdentity)"
+                            ValueChanged="s => SetValue(Options.Clouded.Auth.Identity.Machine.ColumnIdentity, s)"
+                            Label="Name"
+                            Variant="Variant.Outlined"/>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField
+                            T="string?"
+                            Value="(string?)_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine.ColumnDescription)"
+                            ValueChanged="s => SetValue(Options.Clouded.Auth.Identity.Machine.ColumnDescription, s)"
+                            Label="Description"
+                            Variant="Variant.Outlined"/>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSelect
+                            T="string?"
+                            Value="(string?)_machine.Type"
+                            ValueChanged="s => SetValue(Options.Clouded.Auth.Identity.Machine.ColumnType, s)"
+                            Label="Type"
+                            Variant="Variant.Outlined">
+                            <MudSelectItem Value="@(MachineType.Api)">@MachineType.Api</MudSelectItem>
+                            <MudSelectItem Value="@(MachineType.Service)">@MachineType.Service</MudSelectItem>
+                            @* <MudSelectItem Value="@(MachineType.Spa)">@MachineType.Spa</MudSelectItem> *@
+                        </MudSelect>
+                    </MudItem>
+                    @if (_machine.Type is MachineType.Service)
+                    {
+                        <MudItem xs="12">
+                            <MudTextField
+                                T="double?"
+                                Variant="Variant.Outlined"
+                                InputType="InputType.Number"
+                                Label="Expires In"
+                                Value="(double?)_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine.ColumnExpiresIn)"
+                                ValueChanged="s => SetValue(Options.Clouded.Auth.Identity.Machine.ColumnExpiresIn, s)"/>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem sm="12" md="6" lg="5">
+        <MetaDataManager
+            @bind-MetaData="_machineMetaData"/>
+    </MudItem>
+
+    <MudItem Class="d-flex justify-between" xs="12">
+        <MudButton
+            HtmlTag="a"
+            Href="/management/machines"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary">
+            Cancel
+        </MudButton>
+        <MudButton
+            OnClick="Create"
+            StartIcon="@Icons.Material.Filled.Check"
+            ButtonType="ButtonType.Submit"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary"
+            Class="ml-auto">
+            Create
+        </MudButton>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private readonly MachineDictionary _machine = new();
+    private Dictionary<string, object?> _machineMetaData = new();
+
+    private void Create()
+    {
+        var machine = MachineDataSource.EntityCreate(_machine);
+        MachineDataSource.EntityMetaDataUpdate
+            (
+                machine.Id,
+                _machineMetaData
+            );
+
+        Snackbar.Add("Created", Severity.Success);
+        NavigationManager.NavigateTo("/management/machines");
+    }
+
+    private void SetValue(string columnName, object? columnValue) =>
+        _machine[columnName] = columnValue;
+
+}

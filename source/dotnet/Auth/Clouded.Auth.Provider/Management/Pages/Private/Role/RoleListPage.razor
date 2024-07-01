@@ -1,0 +1,162 @@
+@page "/management/roles"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@using Clouded.Core.DataSource.Shared.Extensions
+@using Clouded.Shared
+@inject ApplicationOptions Options 
+@inject NavigationManager NavigationManager
+@inject IRoleDataSource RoleDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudText Typo="Typo.h2">Roles</MudText>
+    <div Class="d-flex items-end pb-6">
+        <MudButton
+            StartIcon="@Icons.Material.Filled.Add"
+            OnClick="Create"
+            ButtonType="ButtonType.Submit"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary"
+            Class="ml-auto">
+            Create new role
+        </MudButton>
+    </div>
+
+    <MudTable
+        @ref="_tableReference"
+        T="RoleDictionary"
+        ServerData="@(new Func<TableState, Task<TableData<RoleDictionary>>>(LoadData))"
+        OnRowClick="RowClick"
+        Class="py-1 px-2"
+        Hover="true"
+        Striped="true">
+        <ToolBarContent>
+            <MudGrid 
+                Spacing="1" 
+                Justify="Justify.SpaceBetween" 
+                Class="flex-1 align-center rounded mud-background" 
+                style="margin: 0 -8px 0 -16px"
+                >
+                <MudItem Class="d-flex align-center ml-2">
+                    <MudIcon Icon="@Icons.Material.Outlined.TableChart"/>
+                    <MudText Class="px-4" Typo="Typo.h6">Records</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudStack Row="@true" AlignItems="AlignItems.Center" Class="ml-auto">
+                        <MudTextField
+                            T="string"
+                            Margin="Margin.Dense"
+                            Variant="Variant.Outlined"
+                            Placeholder="Search"
+                            Adornment="Adornment.Start"
+                            AdornmentIcon="@Icons.Material.Filled.Search"
+                            IconSize="Size.Medium"
+                            Class="mt-0 mr-2"
+                            Immediate="true"
+                            ValueChanged="@OnSearch"/>
+
+                        <ListFilter Value="_filterValues" ValueChanged="OnValueChange" Columns="@_filterableColumns"/>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            @foreach (var column in _roleColumns)
+            {
+                <MudTh>
+                    <MudTableSortLabel
+                        T="RoleDictionary"
+                        SortLabel="@column.Name">
+                        @column.Name.ToReadCase()
+                    </MudTableSortLabel>
+                </MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate>
+            @foreach (var column in _roleColumns)
+            {
+                <MudTd DataLabel="@column.Name">@context[column.Name]</MudTd>
+            }
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager/>
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private IEnumerable<ColumnResult> _roleColumns = null!;
+    private bool _initiallyLoaded;
+    
+    private MudTable<RoleDictionary>? _tableReference;
+    private string? _tableSearch;
+    private IEnumerable<ColumnResult> _filterableColumns = new List<ColumnResult>();
+    private Dictionary<string, object?> _filterValues = new();
+
+    protected override void OnInitialized()
+    {
+        _roleColumns = RoleDataSource
+            .GetEntityColumns()
+            .Where
+            (
+                column => 
+                    column.Name == Options.Clouded.Auth.Identity.Role!.ColumnId
+                    || column.Name == Options.Clouded.Auth.Identity.Role!.ColumnIdentity
+            );
+
+        _filterableColumns = _roleColumns.OnlyFilterableFields();
+        foreach (var filterableColumn in _filterableColumns)
+        {
+            _filterValues[filterableColumn.GetKey()] = null;
+        }
+
+        _initiallyLoaded = true;
+    }
+    
+    private void Create()
+    {
+        NavigationManager.NavigateTo("/management/roles/create");
+    }
+
+    private Task<TableData<RoleDictionary>> LoadData(TableState state) 
+    {
+        var data = RoleDataSource
+            .EntitiesPaginated
+            (
+                state.Page,
+                state.PageSize,
+                _tableSearch,
+                filter: (_filterableColumns, _filterValues),
+                state.SortLabel, 
+                state.SortDirection == SortDirection.Descending
+            );
+
+        return Task.FromResult
+            (
+                new TableData<RoleDictionary>
+                {
+                    TotalItems = (int) data.PageInfo.TotalElements,
+                    Items = data.Items
+                }
+            );
+    }
+    
+    private void OnSearch(string? text)
+    {
+        _tableSearch = text?.Length < 3 ? null : text;
+        _tableReference?.ReloadServerData();
+    }
+    
+    private void RowClick(TableRowClickEventArgs<RoleDictionary> args)
+    {
+        NavigationManager.NavigateTo($"/management/roles/{args.Item.Id}");
+    }
+
+    private void OnValueChange(Dictionary<string, object?> value)
+    {
+        _filterValues = value;
+        _tableReference?.ReloadServerData();
+    }
+}

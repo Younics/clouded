@@ -1,0 +1,542 @@
+@using Microsoft.EntityFrameworkCore
+@using Octokit
+@using NotFoundException = Clouded.Results.Exceptions.NotFoundException
+@using RepositoryType = Clouded.Shared.Enums.RepositoryType
+@using Clouded.Shared
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Shared.Enums
+@using Clouded.Platform.App.Web.Helpers
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.App.Web.Exceptions
+@inherits CancellableComponentBase
+@inject ApplicationOptions ApplicationOptions
+@inject IDbContextResolver DbContextResolver
+@inject IStorageService StorageService
+@inject IFunctionProviderService FunctionProviderService
+@inject NavigationManager NavigationManager
+@inject IUserIntegrationService UserIntegrationService
+@inject ISessionStorageService SessionStorageService
+@inject ApplicationOptions Options
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<EditForm
+    @ref="@_formRef"
+    @bind-IsValid="@_isValid"
+    ValidationDelay="300"
+    OnValidSubmit="OnValidSubmit"
+    Model="@Model">
+
+<FluentValidationValidator @ref="_fluentValidationValidator"/>
+
+<MudGrid Spacing="4">
+<MudItem xs="12">
+    <MudStack Class="" Row="@true">
+        <MudText Class="flex-grow-1" Typo="Typo.h2">@Title @(IsCreate ? null : Model?.Name)</MudText>
+    </MudStack>
+</MudItem>
+
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@FunctionProviderService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@FunctionProviderService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                ButtonType="ButtonType.Submit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@(FunctionProviderService.GetEditRoute(ProjectId, Model.Id))"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+
+
+<MudItem xs="4">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Basic configuration">
+        <Content>
+            <MudStack Row="@false">
+                <ValidationInfoBox T="RepositoryType" For="@(() => Model.RepositoryType)"/>
+                <MudSelect
+                    T="ERepositoryProvider?"
+                    Value="_selectedRepositoryProvider"
+                    ValueChanged="OnRepositoryProviderChange"
+                    Placeholder="Choose a repository provider"
+                    Label="Repository provider"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var repositoryProvider in _repositoryProviders)
+                    {
+                        <MudSelectItem T="ERepositoryProvider?" Value="@(repositoryProvider)">@repositoryProvider</MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (_selectedRepositoryProvider != null)
+                {
+                    if (_repositoryProviderHandlers[_selectedRepositoryProvider.Value].IsRepositoryProviderConnected())
+                    {
+                        if (_loadingRepositories)
+                        {
+                            <MudProgressCircular Color="Color.Primary" Size="Size.Medium" Indeterminate="true"/>
+                        }
+                        else
+                        {
+                            <ValidationInfoBox T="string" For="@(() => Model.RepositoryId)"/>
+                            <MudSelect
+                                T="Repository?"
+                                Value="_selectedRepository"
+                                ValueChanged="OnRepositoryChange"
+                                Placeholder="Choose a repository"
+                                Label="Repository"
+                                Required="@true"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                AnchorOrigin="Origin.BottomCenter">
+                                @foreach (var repository in _repositories)
+                                {
+                                    <MudSelectItem T="Repository?" Value="@(repository)">@repository.FullName</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
+                    }
+                    else
+                    {
+                        <MudButton
+                            Variant="Variant.Filled"
+                            Color="Color.Tertiary"
+                            OnClick="@(() => _repositoryProviderHandlers[_selectedRepositoryProvider.Value].Connect(NavigationManager, ProjectId, CancellationToken))"
+                            EndIcon="@Icons.Material.Filled.Outbound">
+                            Connect
+                        </MudButton>
+                    }
+                }
+
+                @if (_selectedRepository != null)
+                {
+                    <MudSelect
+                        T="string?"
+                        Value="_selectedBranch"
+                        ValueChanged="OnBranchChange"
+                        Placeholder="Choose a branch"
+                        Label="Branch"
+                        Required="@true"
+                        For="@(() => Model.Branch)"
+                        ReadOnly="@Readonly"
+                        Variant="Variant.Outlined"
+                        AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var branch in _branches)
+                        {
+                            <MudSelectItem Value="@((string?)branch.Name)">@branch.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+            </MudStack>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="8">
+    <MudStack Row="@false">
+        @if (_selectedBranch != null)
+        {
+            if (_processingBranch)
+            {
+                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true"/>
+            }
+            else if (_projectConfig == null)
+            {
+                <MudAlert Severity="Severity.Warning">Functions config not found 🫤. Please visit <a href="https://google.com">docs page</a> and take a look how to create functions config.</MudAlert>
+            }
+            else
+            {
+                <Tile Icon="@Icons.Material.Filled.Tune" Title="Functions config">
+                    <Content>
+                        <pre><code>@_projectConfigContent</code></pre>
+                    </Content>
+                </Tile>
+            }
+        }
+    </MudStack>
+</MudItem>
+
+
+<MudItem xs="12">
+    <MudStack Row="@false">
+        @if (_selectedBranch != null && !_processingBranch && _projectConfig != null)
+        {
+            <Tile Icon="@Icons.Material.Filled.Code" Title="Functions">
+                <Content>
+                    <MudTable
+                        Elevation="0"
+                        Square="@true"
+                        Breakpoint="Breakpoint.Sm"
+                        FixedHeader="@true"
+                        Items="@_filteredBranchFunctions"
+                        Virtualize="@true"
+                        GroupBy="@_functionsGroupDefinition"
+                        GroupHeaderStyle="background-color:var(--mud-palette-background-grey)"
+                        GroupFooterClass="mb-4"
+                        Dense="@true">
+                        <ToolBarContent>
+                            <MudText Typo="Typo.h6"></MudText>
+                            <MudSpacer/>
+                            <MudTextField
+                                T="string"
+                                DebounceInterval="300"
+                                ValueChanged="@(OnSearch)"
+                                Placeholder="Search"
+                                Adornment="Adornment.Start"
+                                AdornmentIcon="@Icons.Material.Filled.Search"
+                                IconSize="Size.Medium"
+                                Class="mt-0">
+                            </MudTextField>
+                        </ToolBarContent>
+                        <ColGroup>
+                            <col style="width: 60px;"/>
+                            <col/>
+                            <col/>
+                        </ColGroup>
+                        <HeaderContent>
+                            <MudTh>Type</MudTh>
+                            <MudTh>Name</MudTh>
+                        </HeaderContent>
+                        <GroupHeaderTemplate Context="TableContext">
+                            <MudTh Class="mud-table-cell-custom-group" colspan="5">@($"{TableContext.GroupName}: {TableContext.Key}")</MudTh>
+                        </GroupHeaderTemplate>
+                        <RowTemplate Context="TableContext">
+                            <MudTd DataLabel="Type">@TableContext.FunctionType.GetEnumName()</MudTd>
+                            <MudTd DataLabel="Name">@TableContext.FunctionName</MudTd>
+                        </RowTemplate>
+                        <GroupFooterTemplate Context="TableContext">
+                            <MudTh Class="mud-table-cell-custom-group mud-table-cell-custom-group-footer" colspan="5">Count: @TableContext.Items.Count()</MudTh>
+                        </GroupFooterTemplate>
+                    </MudTable>
+                </Content>
+            </Tile>
+        }
+    </MudStack>
+</MudItem>
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@FunctionProviderService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@FunctionProviderService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                ButtonType="ButtonType.Submit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@(FunctionProviderService.GetEditRoute(ProjectId, Model.Id))"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+</MudGrid>
+
+</EditForm>
+
+@code {
+
+    [Parameter, EditorRequired] public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")] public ProjectEntity Project { get; set; } = null!;
+
+    [Parameter] public string Title { get; set; } = null!;
+
+    [Parameter, EditorRequired] public FunctionProviderInput Model { get; set; } = null!;
+
+    [Parameter, EditorRequired] public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter] public bool Readonly { get; set; } = true;
+
+    [Parameter] public bool IsCreate { get; set; } = true;
+
+    private EditForm _formRef = null!;
+    private bool _isValid = true;
+    private FluentValidationValidator? _fluentValidationValidator;
+
+    private bool _loadingRepositories = true;
+    private UserIntegrationEntity? _userIntegration;
+    private IEnumerable<Branch> _branches = Array.Empty<Branch>();
+    private string? _selectedBranch;
+    private string? _projectConfigContent;
+    private FunctionProject? _projectConfig;
+    private List<FunctionProviderExecutableInput> _branchFunctions = new();
+    private List<FunctionProviderExecutableInput> _filteredBranchFunctions = new();
+    private List<FunctionProviderEntity> _providerEntities = new();
+    private bool _processingBranch;
+    private CloudedDbContext _dbContext = null!;
+
+    private readonly TableGroupDefinition<FunctionProviderExecutableInput> _functionsGroupDefinition = new()
+    {
+        GroupName = "Group",
+        Indentation = false,
+        Expandable = true,
+        Selector = (e) => e.ExecutableName
+    };
+
+    private readonly List<ERepositoryProvider> _repositoryProviders = new()
+    {
+        ERepositoryProvider.Github,
+        ERepositoryProvider.Gitlab,
+        ERepositoryProvider.Bitbucket,
+    };
+
+    private Dictionary<ERepositoryProvider, RepositoryHandlerDefinition> _repositoryProviderHandlers = new();
+    private ERepositoryProvider? _selectedRepositoryProvider;
+    private Repository? _selectedRepository;
+    private IReadOnlyList<Repository> _repositories = Array.Empty<Repository>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+        _providerEntities = await _dbContext
+            .GetAll<FunctionProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .ToListAsync(CancellationToken);
+
+        _userIntegration = await UserIntegrationService
+            .CurrentIntegrationAsync(cancellationToken: CancellationToken);
+
+        if (_userIntegration == null)
+        {
+            throw new NotFoundException("UserIntegration");
+        }
+
+        _repositoryProviderHandlers = new()
+        {
+            {
+                ERepositoryProvider.Github, new GithubRepositoryHandlerDefinition(_userIntegration, Options.Clouded, _dbContext, SessionStorageService, UserIntegrationService)
+            },
+            {
+                ERepositoryProvider.Gitlab, new GitlabRepositoryHandlerDefinition(_userIntegration, Options.Clouded, _dbContext, SessionStorageService, UserIntegrationService)
+            },
+            {
+                ERepositoryProvider.Bitbucket, new BitbucketRepositoryHandlerDefinition(_userIntegration, Options.Clouded, _dbContext, SessionStorageService, UserIntegrationService)
+            }
+        };
+
+        if (Model.Id != null)
+        {
+            _loadingRepositories = true;
+
+            _selectedRepositoryProvider = Model.RepositoryType switch
+            {
+                RepositoryType.Github => ERepositoryProvider.Github,
+                RepositoryType.Gitlab => ERepositoryProvider.Gitlab,
+                RepositoryType.BitBucket => ERepositoryProvider.Bitbucket,
+                _ => _selectedRepositoryProvider
+            };
+            StateHasChanged();
+
+            await OnRepositoryProviderChange(_selectedRepositoryProvider);
+        }
+        else
+        {
+            RepositoryType? connectionType = await SessionStorageService.GetItemAsync<RepositoryType>
+            (
+                "RepositoryType",
+                CancellationToken
+            );
+
+            _selectedRepositoryProvider = connectionType switch
+            {
+                RepositoryType.Github => ERepositoryProvider.Github,
+                RepositoryType.Gitlab => ERepositoryProvider.Gitlab,
+                RepositoryType.BitBucket => ERepositoryProvider.Bitbucket,
+                _ => _selectedRepositoryProvider
+            };
+        }
+
+        if (_selectedRepositoryProvider != null)
+        {
+            _loadingRepositories = true;
+
+            await _repositoryProviderHandlers[_selectedRepositoryProvider.Value].Process(NavigationManager.ToAbsoluteUri(NavigationManager.Uri).Query, CancellationToken);
+            _repositories = await _repositoryProviderHandlers[_selectedRepositoryProvider.Value].GetRepositories();
+
+            if (Model.Id != null)
+            {
+                var selectedRepo = _repositories.FirstOrDefault(i => i.Id.ToString() == Model.RepositoryId);
+                await OnRepositoryChange(selectedRepo);
+                await OnBranchChange(Model.Branch);
+            }
+
+            _loadingRepositories = false;
+        }
+    }
+
+    private async Task OnBranchChange(string? branchName)
+    {
+        if (branchName == null) return;
+
+        _processingBranch = true;
+        _selectedBranch = branchName;
+
+        _projectConfig = null;
+        _projectConfigContent = null;
+        _branchFunctions = new();
+        try
+        {
+            (_branchFunctions, _projectConfigContent, _projectConfig) = await _repositoryProviderHandlers[_selectedRepositoryProvider!.Value].LoadFunctionsFromRepositoryBranch(_selectedRepository!, _selectedBranch);
+            Model.Name = _projectConfig.Name;
+            Model.Hooks = _branchFunctions;
+            _filteredBranchFunctions = new List<FunctionProviderExecutableInput>(_branchFunctions);
+        }
+        catch (FunctionConfigNotFoundException e)
+        {
+            Snackbar.Add("Config not found", Severity.Warning);
+            _processingBranch = false;
+        }
+        catch (FunctionConfigInvalidException e)
+        {
+            Snackbar.Add("Config is not valid", Severity.Error);
+            _processingBranch = false;
+        }
+        catch (GettingFunctionsConfigException e)
+        {
+            Snackbar.Add("Error occured when getting config", Severity.Error);
+            _processingBranch = false;
+        }
+        finally
+        {
+            _processingBranch = false;
+        }
+    }
+
+    private async Task OnRepositoryChange(Repository? repository)
+    {
+        _selectedRepository = repository;
+        Model.RepositoryId = _selectedRepository!.Id.ToString();
+        Model.RepositoryType = _selectedRepositoryProvider!.Value.ToRepositoryType();
+        _selectedBranch = null;
+        _branches = await _repositoryProviderHandlers[_selectedRepositoryProvider!.Value].GetBranches(repository.Id);
+    }
+
+    private async Task OnRepositoryProviderChange(ERepositoryProvider? obj)
+    {
+        _selectedBranch = null;
+        _selectedRepository = null;
+        _selectedRepositoryProvider = obj;
+        Model.RepositoryType = _selectedRepositoryProvider!.Value.ToRepositoryType();
+
+        if (_repositoryProviderHandlers[_selectedRepositoryProvider!.Value].IsRepositoryProviderConnected())
+        {
+            _loadingRepositories = true;
+            _repositories = await _repositoryProviderHandlers[_selectedRepositoryProvider.Value].GetRepositories();
+            _loadingRepositories = false;
+        }
+    }
+
+    private void OnSearch(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            _filteredBranchFunctions = new List<FunctionProviderExecutableInput>(_branchFunctions);
+        }
+        else
+        {
+            _filteredBranchFunctions = _branchFunctions.Where(i => i.FunctionName.Contains(text, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        }
+    }
+
+    private async Task HandleRemoveClick()
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var functionProviderEntity = await _dbContext
+                .GetAsync<FunctionProviderEntity>(x => x.Id == Model.Id);
+
+            await FunctionProviderService.DeleteAsync(functionProviderEntity!, null, Snackbar);
+            Snackbar.Add("Deleted", Severity.Success);
+            NavigationManager.NavigateTo(FunctionProviderService.GetListRoute(ProjectId));
+        }
+    }
+
+}

@@ -1,0 +1,150 @@
+@using Clouded.Auth.Provider.Dictionaries
+@if (Permissions.Any())
+{
+    <MudGrid Class="align-center" Justify="Justify.FlexEnd" Spacing="1">
+        <MudItem xs="12">
+            <MudAutocomplete
+                Variant="Variant.Outlined"
+                T="PermissionDictionary"
+                Label="Assign a new permission"
+                Placeholder="Search (min. 3 characters)"
+                @bind-Value="_currentPermission"
+                ToStringFunc="@PermissionConverter"
+                SearchFunc="@PermissionsSearch"
+                ResetValueOnEmptyText="true"
+                CoerceText="true"/>
+        </MudItem>
+        <MudItem>
+            <MudButton
+                StartIcon="@Icons.Material.Filled.Add"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Outlined"
+                Color="Color.Primary"
+                OnClick="Add">
+                Add
+            </MudButton>
+        </MudItem>
+
+
+        <MudItem xs="12">
+            <MudList
+                DisableGutters="true"
+                Dense="true">
+                <MudListSubheader Class="px-1 py-0">
+                    @if (!SelectedPermissions.Any())
+                    {
+                        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center">
+                            <MudIcon Class="pr-1" Color="Color.Info" Icon="@Icons.Material.Filled.Info"></MudIcon>
+                            There are no assigned permissions
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h6">Permissions</MudText>
+                    }
+                </MudListSubheader>
+
+                @foreach (var permission in SelectedPermissions)
+                {
+                    <MudListItem Class="d-flex justify-between">
+                        <MudGrid Class="align-center" Justify="Justify.SpaceBetween">
+                            <MudItem xs="8">
+                                <MudChip Class="overflow-hidden" Icon="@Icons.Material.Filled.Rule" Text="@permission[IdentityKey]?.ToString()"/>
+                            </MudItem>
+                            <MudItem>
+                                <MudIconButton
+                                    Icon="@Icons.Material.Filled.Delete"
+                                    Color="Color.Tertiary"
+                                    Size="Size.Medium"
+                                    OnClick="() => Remove(permission)"/>
+                            </MudItem>
+                        </MudGrid>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+
+    [Parameter]
+    public required string IdKey { get; set; }
+
+    [Parameter]
+    public required string IdentityKey { get; set; }
+
+    [Parameter]
+    public required IEnumerable<PermissionDictionary> Permissions { get; set; }
+
+    [Parameter]
+    public required IEnumerable<PermissionDictionary> SelectedPermissions { get; set; }
+
+    [Parameter]
+    public EventCallback<IEnumerable<PermissionDictionary>>? SelectedPermissionsChanged { get; set; }
+
+    private PermissionDictionary? _currentPermission;
+
+    private Func<PermissionDictionary?, string> PermissionConverter =>
+        permission =>
+            permission != null
+                ? permission.GetValueOrDefault(IdentityKey)?.ToString() ?? string.Empty
+                : string.Empty;
+
+    private Task<IEnumerable<PermissionDictionary>> PermissionsSearch(string value)
+    {
+        var permissions = Permissions.Where
+            (
+                permission =>
+                    !SelectedPermissions
+                        .Select(selectedPermission => selectedPermission[IdKey])
+                        .Contains(permission.GetValueOrDefault(IdKey))
+            );
+
+        return Task.FromResult
+            (
+                !string.IsNullOrEmpty(value)
+                    ? permissions.Where
+                        (
+                            permission =>
+                                permission[IdentityKey]?
+                                    .ToString()?
+                                    .Contains(value, StringComparison.InvariantCultureIgnoreCase)
+                                ?? false
+                        )
+                    : permissions
+            );
+    }
+
+    private void Add()
+    {
+        if (_currentPermission == null)
+            return;
+
+        var alreadyPresent = SelectedPermissions.Any
+            (
+                permission =>
+                    permission[IdKey] ==
+                    _currentPermission[IdKey]
+            );
+
+        if (alreadyPresent)
+            return;
+
+        SelectedPermissions = SelectedPermissions.Append(_currentPermission);
+        _currentPermission = null;
+
+        SelectedPermissionsChanged?.InvokeAsync(SelectedPermissions);
+    }
+
+    private void Remove(PermissionDictionary permission)
+    {
+        SelectedPermissions = SelectedPermissions.Where
+            (
+                selectedPermission =>
+                    selectedPermission[IdKey] != permission[IdKey]
+            );
+        SelectedPermissionsChanged?.InvokeAsync(SelectedPermissions);
+    }
+
+}

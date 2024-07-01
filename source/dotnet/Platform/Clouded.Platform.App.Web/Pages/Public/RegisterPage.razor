@@ -1,0 +1,124 @@
+@page "/register"
+@inherits CancellableComponentBase
+@using Clouded.Core.Tracking.Services.Interfaces
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inject ITrackingService TrackingService
+@inject IAuthService AuthService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+ 
+<EditForm Model="@_input" OnValidSubmit="OnValidSubmit">
+    <FluentValidationValidator />
+    
+    <MudText Typo="Typo.h1" GutterBottom="true">Sign Up</MudText>
+    <div Class="d-flex flex-column gap-4">
+        <MudText>Already have an account? <MudLink Href="/login">Sign In</MudLink></MudText>
+        <div Class="d-flex gap-4">
+            <MudTextField
+                T="string"
+                @bind-Value="_input.FirstName"
+                For="@(() => _input.FirstName)"
+                Label="First name" 
+                Variant="Variant.Outlined" 
+            />
+            <MudTextField
+                @bind-Value="_input.LastName"
+                For="@(() => _input.LastName)"
+                T="string" 
+                Label="Last name" 
+                Variant="Variant.Outlined" 
+            />
+        </div>
+
+        <MudTextField 
+            T="string"
+            @bind-Value="_input.Email"
+            For="@(() => _input.Email)"
+            Label="E-mail" 
+            Variant="Variant.Outlined"
+        />
+
+        <MudTextField 
+            @bind-Value="_input.Password"
+            For="@(() => _input.Password)"
+            Label="Password" 
+            Variant="Variant.Outlined" 
+            InputType="@_passwordInput" 
+            Adornment="Adornment.End" 
+            AdornmentIcon="@_passwordInputIcon" 
+            OnAdornmentClick="TogglePasswordVisibility" 
+        />
+
+        <MudCheckBox 
+            @bind-Checked="@_agreeToTerms" 
+            Label="I agree to the terms and privacy" 
+            Color="Color.Primary" 
+            Class="ml-n1"
+        />
+        
+        <ValidationSummary />
+
+        <MudButton
+            ButtonType="ButtonType.Submit"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary"
+            Disabled="@(!_agreeToTerms)"
+            Size="Size.Large"
+            FullWidth="true">
+            Register
+        </MudButton>
+    </div>
+</EditForm>
+
+@code {
+    private readonly RegisterInput _input = new();
+
+    private bool _agreeToTerms;
+    private bool _passwordVisibility;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void TogglePasswordVisibility()
+    {
+        @if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+
+    private async Task OnValidSubmit(EditContext context)
+    {
+        var user = await AuthService.RegisterAsync(_input);
+
+        if (user == null)
+        {
+            Snackbar.Add("Something went wrong, try again.", Severity.Error);
+            return;
+        }
+        
+        await TrackingService.CreateUserAsync
+        (
+            user.Id,
+            new Dictionary<string, object?>
+            {
+                {"Email", user.Email},
+                {"FirstName", user.FirstName},
+                {"LastName", user.LastName}
+            },
+            cancellationToken: CancellationToken
+        );
+        
+        await TrackingService.TrackUserAsync(user.Id, "SignUp", cancellationToken: CancellationToken);
+
+        Snackbar.Add("Your registration was successful, now you can log in.", Severity.Success);
+        NavigationManager.NavigateTo("/login");
+    }
+}

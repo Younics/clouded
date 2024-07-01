@@ -1,0 +1,148 @@
+@using Clouded.Auth.Provider.Dictionaries
+@if (Domains.Any())
+{
+    <MudGrid Class="align-center" Justify="Justify.FlexEnd" Spacing="1">
+        <MudItem xs="12">
+            <MudAutocomplete
+                Variant="Variant.Outlined"
+                T="DomainDictionary"
+                Label="Assign a new domain"
+                Placeholder="Search (min. 3 characters)"
+                @bind-Value="_currentDomain"
+                ToStringFunc="@DomainConverter"
+                SearchFunc="@DomainsSearch"
+                ResetValueOnEmptyText="true"
+                CoerceText="true"/>
+        </MudItem>
+        <MudItem>
+            <MudButton
+                StartIcon="@Icons.Material.Filled.Add"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Outlined"
+                Color="Color.Primary"
+                OnClick="Add">
+                Add
+            </MudButton>
+        </MudItem>
+
+        
+        <MudItem xs="12">
+            <MudList
+                DisableGutters="true"
+                Dense="true">
+                <MudListSubheader Class="px-1 py-0">
+                    @if (!SelectedDomains.Any())
+                    {
+                        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center">
+                            <MudIcon Class="pr-1" Color="Color.Info" Icon="@Icons.Material.Filled.Info"></MudIcon>
+                            There are no assigned domains 
+                        </MudText>
+                    }
+                    else
+                    {
+                        <div>Domains</div>
+                    }
+                </MudListSubheader>
+
+                @foreach (var domain in SelectedDomains)
+                {
+                    <MudListItem Class="d-flex justify-between">
+                        <MudGrid Class="align-center" Justify="Justify.SpaceBetween">
+                            <MudItem xs="8">
+                                <MudChip Class="overflow-hidden" Icon="@Icons.Material.Filled.Person" Text="@domain[IdentityKey]?.ToString()"/>
+                            </MudItem>
+                            <MudItem>
+                                <MudIconButton
+                                    Icon="@Icons.Material.Filled.Delete"
+                                    Color="Color.Tertiary"
+                                    Size="Size.Medium"
+                                    OnClick="() => Remove(domain)"/>
+                            </MudItem>
+                        </MudGrid>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public required string IdKey { get; set; }
+    
+    [Parameter]
+    public required string IdentityKey { get; set; }
+    
+    [Parameter]
+    public required IEnumerable<DomainDictionary> Domains { get; set; } 
+    
+    [Parameter]
+    public required IEnumerable<DomainDictionary> SelectedDomains { get; set; } 
+    
+    [Parameter]
+    public EventCallback<IEnumerable<DomainDictionary>>? SelectedDomainsChanged { get; set; }
+    
+    private DomainDictionary? _currentDomain;
+
+    private Func<DomainDictionary?, string> DomainConverter =>
+        domain =>
+            domain != null
+            ? domain.GetValueOrDefault(IdentityKey)?.ToString() ?? string.Empty
+            : string.Empty;
+
+    private Task<IEnumerable<DomainDictionary>> DomainsSearch(string value)
+    {
+        var domains = Domains.Where
+        (
+            domain => 
+                !SelectedDomains
+                    .Select(selectedDomain => selectedDomain[IdKey])
+                    .Contains(domain.GetValueOrDefault(IdKey))
+        );
+
+        return Task.FromResult
+        (
+            !string.IsNullOrEmpty(value)
+                ? domains.Where
+                (
+                    domain =>
+                        domain[IdentityKey]?
+                            .ToString()?
+                            .Contains(value, StringComparison.InvariantCultureIgnoreCase)
+                        ?? false
+                )
+                : domains
+        );
+    }
+
+    private void Add()
+    {
+        if (_currentDomain == null)
+            return;
+        
+        var alreadyPresent = SelectedDomains.Any
+        (
+            domain =>
+                domain[IdKey] == 
+                _currentDomain[IdKey]
+        );
+
+        if (alreadyPresent)
+            return;
+
+        SelectedDomains = SelectedDomains.Append(_currentDomain);
+        _currentDomain = null;
+        
+        SelectedDomainsChanged?.InvokeAsync(SelectedDomains);
+    }
+
+    private void Remove(DomainDictionary domain)
+    {
+        SelectedDomains = SelectedDomains.Where
+        (
+            selectedDomain =>
+                selectedDomain[IdKey] != domain[IdKey]
+        );
+        SelectedDomainsChanged?.InvokeAsync(SelectedDomains);
+    }
+}

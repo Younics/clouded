@@ -1,0 +1,148 @@
+@using Clouded.Auth.Provider.Dictionaries
+@if (Roles.Any())
+{
+    <MudGrid Class="align-center" Justify="Justify.FlexEnd" Spacing="1">
+        <MudItem xs="12">
+            <MudAutocomplete
+                Variant="Variant.Outlined"
+                T="RoleDictionary"
+                Label="Assign a new role"
+                Placeholder="Search (min. 3 characters)"
+                @bind-Value="_currentRole"
+                ToStringFunc="@RoleConverter"
+                SearchFunc="@RolesSearch"
+                ResetValueOnEmptyText="true"
+                CoerceText="true"/>
+        </MudItem>
+        <MudItem>
+            <MudButton
+                StartIcon="@Icons.Material.Filled.Add"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Outlined"
+                Color="Color.Primary"
+                OnClick="Add">
+                Add
+            </MudButton>
+        </MudItem>
+
+        
+        <MudItem xs="12">
+            <MudList
+                DisableGutters="true"
+                Dense="true">
+                <MudListSubheader Class="px-1 py-0">
+                    @if (!SelectedRoles.Any())
+                    {
+                        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center">
+                            <MudIcon Class="pr-1" Color="Color.Info" Icon="@Icons.Material.Filled.Info"></MudIcon>
+                            There are no assigned roles 
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h6">Roles</MudText>
+                    }
+                </MudListSubheader>
+
+                @foreach (var role in SelectedRoles)
+                {
+                    <MudListItem Class="d-flex justify-between">
+                        <MudGrid Class="align-center" Justify="Justify.SpaceBetween">
+                            <MudItem xs="8">
+                                <MudChip Class="overflow-hidden" Icon="@Icons.Material.Filled.Person" Text="@role[IdentityKey]?.ToString()"/>
+                            </MudItem>
+                            <MudItem>
+                                <MudIconButton
+                                    Icon="@Icons.Material.Filled.Delete"
+                                    Color="Color.Tertiary"
+                                    Size="Size.Medium"
+                                    OnClick="() => Remove(role)"/>
+                            </MudItem>
+                        </MudGrid>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public required string IdKey { get; set; }
+    
+    [Parameter]
+    public required string IdentityKey { get; set; }
+    
+    [Parameter]
+    public required IEnumerable<RoleDictionary> Roles { get; set; } 
+    
+    [Parameter]
+    public required IEnumerable<RoleDictionary> SelectedRoles { get; set; } 
+    
+    [Parameter]
+    public EventCallback<IEnumerable<RoleDictionary>>? SelectedRolesChanged { get; set; }
+    
+    private RoleDictionary? _currentRole;
+
+    private Func<RoleDictionary?, string> RoleConverter =>
+        role =>
+            role != null
+            ? role.GetValueOrDefault(IdentityKey)?.ToString() ?? string.Empty
+            : string.Empty;
+
+    private Task<IEnumerable<RoleDictionary>> RolesSearch(string value)
+    {
+        var roles = Roles.Where
+        (
+            role => 
+                !SelectedRoles
+                    .Select(selectedRole => selectedRole[IdKey])
+                    .Contains(role.GetValueOrDefault(IdKey))
+        );
+
+        return Task.FromResult
+        (
+            !string.IsNullOrEmpty(value)
+                ? roles.Where
+                (
+                    role =>
+                        role[IdentityKey]?
+                            .ToString()?
+                            .Contains(value, StringComparison.InvariantCultureIgnoreCase)
+                        ?? false
+                )
+                : roles
+        );
+    }
+
+    private void Add()
+    {
+        if (_currentRole == null)
+            return;
+        
+        var alreadyPresent = SelectedRoles.Any
+        (
+            role =>
+                role[IdKey] == 
+                _currentRole[IdKey]
+        );
+
+        if (alreadyPresent)
+            return;
+
+        SelectedRoles = SelectedRoles.Append(_currentRole);
+        _currentRole = null;
+        
+        SelectedRolesChanged?.InvokeAsync(SelectedRoles);
+    }
+
+    private void Remove(RoleDictionary role)
+    {
+        SelectedRoles = SelectedRoles.Where
+        (
+            selectedPermission =>
+                selectedPermission[IdKey] != role[IdKey]
+        );
+        SelectedRolesChanged?.InvokeAsync(SelectedRoles);
+    }
+}

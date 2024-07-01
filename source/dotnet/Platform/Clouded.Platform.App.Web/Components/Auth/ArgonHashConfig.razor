@@ -1,0 +1,54 @@
+<MudStack Row="@false" Spacing="2">
+    <MudNumericField
+        T="int"
+        Required="true"
+        Variant="Variant.Outlined"
+        Label="Parallelism degree"
+        Step="1"
+        ReadOnly="@Readonly"
+        For="@(() => Input.DegreeOfParallelism)"
+        @bind-Value="Input.DegreeOfParallelism"/>
+    
+    <MudNumericField
+        T="int"
+        Required="true"
+        Variant="Variant.Outlined"
+        Label="Iterations"
+        Step="1"
+        ReadOnly="@Readonly"
+        For="@(() => Input.Iterations)"
+        @bind-Value="Input.Iterations"/>
+    
+    <MudNumericField
+        T="int"
+        Required="true"
+        Variant="Variant.Outlined"
+        Label="Memory size"
+        Step="1"
+        ReadOnly="@Readonly"
+        For="@(() => Input.MemorySize)"
+        @bind-Value="Input.MemorySize"/>
+    
+    <MudNumericField
+        T="int"
+        Required="true"
+        Variant="Variant.Outlined"
+        Label="Return bytes"
+        Step="1"
+        ReadOnly="@Readonly"
+        For="@(() => Input.ReturnBytes)"
+        @bind-Value="Input.ReturnBytes"/>
+</MudStack>
+
+@code {
+
+    [Parameter]
+    public bool Readonly { get; set; }
+
+    [Parameter]
+    public AuthProviderArgonHashInput Input { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<AuthProviderArgonHashInput> InputChanged { get; set; }
+
+}

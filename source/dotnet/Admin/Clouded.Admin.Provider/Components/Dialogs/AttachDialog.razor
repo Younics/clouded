@@ -1,0 +1,209 @@
+@using Clouded.Admin.Provider.Extensions
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Admin.Provider.DataSources.Interfaces
+@using Clouded.Admin.Provider.Services.Interfaces
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Admin.Provider.Contexts
+@using Clouded.Core.DataSource.Shared.Enums
+@using Clouded.Core.DataSource.Shared.Input
+@using Clouded.Core.DataSource.Shared.Interfaces
+@using Clouded.Shared.Enums
+@inject ApplicationOptions Options
+@inject IUserSettingsDataSource UserSettingsDataSource
+@inject IAuthService AuthService
+
+<MudDialog>
+    <DialogContent>
+        <MudItem xs="12">
+            <MudStack AlignItems="AlignItems.Center" Row="@true">
+                <MudButton Disabled="@(_relationDetailHref == "")" Href="@(_relationDetailHref)" Target="_blank">
+                    <MudIcon Icon="@Icons.Material.Filled.Search" Title="Detail"/>
+                </MudButton>
+
+                <MudAutocomplete T="DataSourceDictionary?"
+                                 Validation="@(ObjectFieldValidator.Validation)"
+                                 Immediate="@true"
+                                 @ref="RelationAutocomplete"
+                                 Placeholder="Choose an option"
+                                 HelperText="@(_autocompleteMinimumChars > 0 ? $"Search starts at {_autocompleteMinimumChars} chars" : null)"
+                                 HelperTextOnFocus="@true"
+                                 Value="ResolveColumnValue<DataSourceDictionary?>()"
+                                 Variant="Variant.Outlined"
+                                 Label="@EntityName"
+                                 ShowProgressIndicator="@true"
+                                 SearchFunc="RelationSearchFunc"
+                                 ResetValueOnEmptyText="@true"
+                                 CoerceText="@false"
+                                 MinCharacters="@_autocompleteMinimumChars"
+                                 DebounceInterval="500"
+                                 CoerceValue="@false"
+                                 ValueChanged="@SetValue"
+                                 AdornmentIcon="@(Icons.Material.Filled.Search)"
+                                 ToStringFunc="@(e => e == null ? null : string.Join(", ", _selectedColumns.Select(name => e[name])))">
+                    <ItemTemplate Context="e">
+                        @string.Join(", ", _selectedColumns.Select(name => e[name]))
+                    </ItemTemplate>
+                    <ItemSelectedTemplate Context="e">
+                        @string.Join(", ", _selectedColumns.Select(name => e[name]))
+                    </ItemSelectedTemplate>
+                    <MoreItemsTemplate>
+                        <MudText Align="Align.Left" Class="px-4 py-1">
+                            Only the first @_autocompleteLimit items are shown
+                        </MudText>
+                    </MoreItemsTemplate>
+                    <NoItemsTemplate>
+                        <MudText Align="Align.Left" Class="px-4 py-1">
+                            No items found
+                        </MudText>
+                    </NoItemsTemplate>
+                </MudAutocomplete>
+
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    Variant="Variant.Outlined"
+                    Label="Display fields"
+                    MultiSelection="@true"
+                    ValueChanged="ColumnNamesChanged"
+                    @bind-SelectedValues="_selectedColumns">
+
+                    @foreach (var targetColumn in _tableColumns.OnlySelectableFields(_tableOptions!))
+                    {
+                        <MudSelectItem Value="targetColumn.Name">@targetColumn.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </MudItem>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@Color.Success" Variant="Variant.Filled" OnClick="Submit">Attach</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public required AdminContext Context { get; set; }
+
+    [Parameter]
+    public required RelationResult Relation { get; set; }
+
+    [Parameter]
+    public required string EntityName { get; set; }
+
+    private readonly int _autocompleteLimit = 15;
+    private readonly int _autocompleteMinimumChars = 0;
+    private MudAutocomplete<DataSourceDictionary?>? RelationAutocomplete { get; set; }
+    private object? Value { get; set; }
+    private string _relationDetailHref = "";
+    private IEnumerable<string> _selectedColumns = Array.Empty<string>();
+    private IEnumerable<ColumnResult> _tableColumns = Array.Empty<ColumnResult>();
+    private TableOptions? _tableOptions;
+    private static FluentValueValidator<DataSourceDictionary?> ObjectFieldValidator => new FluentValueValidator<DataSourceDictionary?>().RequiredObjectValueValidator();
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var tables = Options.Clouded.Admin.Tables.ToList();
+        _tableColumns = Context.GetColumns(Relation.TargetSchema, Relation.TargetTable);
+
+        _selectedColumns = await Relation.LoadRelationConfig((await AuthService.GetUserId())!, UserSettingsDataSource, attachDialog: true);
+
+        _tableOptions = tables.First(x => x.Table == Relation.TargetTable && x.Schema == Relation.TargetSchema);
+
+        if (Value != null && ((Value as DataSourceDictionary)!).Any())
+        {
+            BuildDetailHref();
+        }
+    }
+
+    private void SetValue(object? value)
+    {
+        Value = value;
+
+        if (Value != null)
+            BuildDetailHref();
+    }
+
+    private T? ResolveColumnValue<T>()
+    {
+        if (Value == null)
+        {
+    // for relation field let it be null :)
+            return default;
+        }
+
+        return (T?)Value;
+    }
+
+    private async void ColumnNamesChanged(string obj)
+    {
+        Relation.SetRelationConfig(Options.Clouded.Admin.Auth.UserSettings, (await AuthService.GetUserId())!, UserSettingsDataSource, _selectedColumns, attachDialog: true);
+    }
+
+    private Task<IEnumerable<DataSourceDictionary>> RelationSearchFunc(string arg)
+    {
+        if (Value != null && arg == string.Join(", ", _selectedColumns.Select(name => ((Value as DataSourceDictionary)!)[name])))
+        {
+            return Task.FromResult<IEnumerable<DataSourceDictionary>>(new List<DataSourceDictionary> { (Value as DataSourceDictionary)! });
+        }
+
+        var conditions = new List<ICondition>
+        {
+            new ConditionOrInput
+            {
+                Conditions = _tableColumns.Where(i => EColumnTypeGroups.Textual.Contains(i.Type)).Select(targetCol => new ConditionValueInput
+                {
+                    Alias = Relation.TargetTable,
+                    Column = targetCol.Name,
+                    Value = arg ?? "",
+                    Operator = EOperator.Contains,
+                    Mode = EMode.Insensitive
+                })
+            }
+        };
+
+        if (Relation.IsUnique)
+        {
+            conditions.Add(new ConditionValueInput
+            {
+                Alias = Relation.TargetTable,
+                Column = Relation.TargetColumn,
+                Value = null,
+                Operator = EOperator.IsNull,
+            });
+        }
+
+        return Task.FromResult(Context.Select
+            (
+                new SelectInput
+                {
+                    Schema = Relation.TargetSchema,
+                    Table = Relation.TargetTable,
+                    Alias = Relation.TargetTable,
+                    Offset = 0,
+                    Limit = _autocompleteLimit,
+                    Where = new ConditionAndInput
+                    {
+                        Conditions = conditions
+                    }
+                }
+            ));
+    }
+
+    private void BuildDetailHref()
+    {
+        _relationDetailHref = (Value as DataSourceDictionary)!.ToEntityDetailUri(_tableColumns, $"/management/{Relation.TargetTable}/detail");
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(new
+    {
+        Value
+    }));
+
+    void Cancel() => MudDialog.Cancel();
+}

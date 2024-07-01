@@ -1,0 +1,117 @@
+@using Clouded.Core.DataSource.Shared
+@if (Model.DataSourceProviderId == null)
+{
+    <MudStack Class="border-dashed border-2 mud-border-dark pa-16 rounded-xl" Row="@false" Justify="Justify.SpaceEvenly" AlignItems="AlignItems.Center">
+        <MudIcon Size="Size.Large" Icon="@Icons.Material.Filled.Storage"/>
+
+        <MudText Typo="Typo.h6">Please select datasource</MudText>
+    </MudStack>
+}
+else if (Schemas != null && Tables != null && Columns != null)
+{
+    <MudStack Row="@true" Spacing="2">
+        <MudItem xs="6">
+            <MudSelect
+                T="string"
+                Placeholder="Choose an option"
+                @bind-Value="@Input.Schema"
+                For="@(() => Input.Schema)"
+                Label="Schema"
+                Required="@true"
+                ReadOnly="@Readonly"
+                Variant="Variant.Outlined"
+                AnchorOrigin="Origin.BottomCenter">
+                @foreach (var schema in Schemas[Model.DataSourceProviderId.Value])
+                {
+                    <MudSelectItem T="string" Value="@schema">@schema</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6">
+            @if (Input.Schema != null)
+            {
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@Input.Table"
+                For="@(() => Input.Table)"
+                    Label="Table"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var table in Tables[DataSourceService.GetTablesKey(Model.DataSourceProviderId.Value, Input.Schema)])
+                    {
+                        <MudSelectItem T="string" Value="@table.TableName">@table.TableName</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+        </MudItem>
+    </MudStack>
+    <MudStack Row="@true" Spacing="2">
+        @if (Input.Table != null)
+        {
+            <MudItem xs="6">
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@Input.ColumnId"
+                For="@(() => Input.ColumnId)"
+                    Label="ID column"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var column in Columns[DataSourceService.GetColumnsKey(Model.DataSourceProviderId.Value, Input.Schema, Input.Table)])
+                    {
+                        <MudSelectItem T="string" Value="@column.Name">@column.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6">
+                <MudSelect
+                    T="string"
+                    Placeholder="Choose an option"
+                    @bind-Value="@Input.ColumnIdentity"
+                For="@(() => Input.ColumnIdentity)"
+                    MultiSelection="@true"
+                    Label="Identity column"
+                    Required="@true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+
+                    @foreach (var column in Columns[DataSourceService.GetColumnsKey(Model.DataSourceProviderId.Value, Input.Schema, Input.Table)])
+                    {
+                        <MudSelectItem T="string" Value="@column.Name">@column.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+    </MudStack>
+}
+
+@code {
+
+    [Parameter, EditorRequired]
+    public AuthProviderInput Model { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public AuthProviderIdentityInput Input { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<AuthProviderIdentityInput> InputChanged { get; set; }
+
+    [Parameter]
+    public bool Readonly { get; set; } = true;
+
+    [Parameter]
+    public Dictionary<long, IEnumerable<string>?>? Schemas { get; set; }
+
+    [Parameter]
+    public Dictionary<string, IEnumerable<TableResult>?>? Tables { get; set; }
+
+    [Parameter]
+    public Dictionary<string, IEnumerable<ColumnResult>?>? Columns { get; set; }
+
+}

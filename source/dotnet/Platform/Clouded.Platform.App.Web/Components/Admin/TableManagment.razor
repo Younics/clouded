@@ -1,0 +1,145 @@
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Shared.Enums
+@if (Table != null)
+{
+    <MudStack Row="@false">
+        <MudStack Row="@true" AlignItems="AlignItems.Start">
+            <MudItem xs="2">
+                <MudSwitch
+                    Color="Color.Primary"
+                    Checked="@Table.Enabled"
+                    CheckedChanged="@(val => OnChangeInput(() => Table.Enabled = val))"
+                    T="bool"
+                    Label="Show"
+                    ReadOnly="@Readonly"/>
+            </MudItem>
+            <MudItem xs="2">
+                <MudSwitch
+                    Color="Color.Primary"
+                    T="bool"
+                    Checked="@Table.InMenu"
+                    CheckedChanged="@(val => OnChangeInput(() => Table.InMenu = val))"
+                    Label="In menu"
+                    ReadOnly="@Readonly"/>
+            </MudItem>
+            <MudItem xs="3">
+                <MudSelect
+                    T="string?"
+                    Value="@Table.NavGroup"
+                    ValueChanged="@(val => OnChangeInput(() => Table.NavGroup = val))"
+                    Placeholder="Choose an option"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    Label="Navigation group"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var group in Groups)
+                    {
+                        <MudSelectItem T="string?" Value="@group.Key">@group.Label</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField
+                    T="string?"
+                    Value="@Table.Name"
+                    ValueChanged="@(val => OnChangeInput(() => Table.Name = val))"
+                    For="@(() => Table.Name)"
+                    ReadOnly="@Readonly"
+                    Label="Name"
+                    Variant="Variant.Outlined"/>
+            </MudItem>
+            <MudItem xs="3">
+                <MudTextField
+                    T="string?"
+                    Value="@Table.SingularName"
+                    ValueChanged="@(val => OnChangeInput(() => Table.SingularName = val))"
+                    For="@(() => Table.SingularName)"
+                    HelperText="Used in titles when needed."
+                    ReadOnly="@Readonly"
+                    Label="Singular name"
+                    Variant="Variant.Outlined"/>
+            </MudItem>
+            <MudItem xs="2">
+                <IconsField
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    Label="Icon"
+                    For="@(() => Table.Icon)"
+                    Placeholder="Choose an option"
+                    ResetValueOnEmptyText="@true"
+                    CoerceText="@false"
+                    Clearable="@true"
+                    MinCharacters="3"
+                    DebounceInterval="500"
+                    CoerceValue="@false"
+                    Value="@Table.Icon"
+                    ValueChanged="@(val => OnChangeInput(() => Table.Icon = val))"/>
+            </MudItem>
+        </MudStack>
+        <MudStack Row="@true">
+            <MudItem xs="12">
+                <Tile Icon="@Icons.Material.Filled.DataObject" Title="Table functions" HelperText="Table functions are executed only for create/update/delete triggers in selected table." Collapsable="@true">
+                    <Content>
+                        <MudStack Row="@false" Spacing="2">
+                            <MudItem xs="12">
+                                <FunctionsHelp/>
+                            </MudItem>
+                            <MudStack Row="@true" Spacing="2">
+                                <MudItem xs="12" md="4">
+                                    <FunctionsManagment
+                                        ReadOnly="@Readonly"
+                                        @bind-AfterHooks="@Table.CreateFunctions.AfterHooks"
+                                        @bind-BeforeHooks="@Table.CreateFunctions.BeforeHooks"
+                                        @bind-InputHooks="@Table.CreateFunctions.InputHooks"
+                                        @bind-ValidationHooks="@Table.CreateFunctions.ValidationHooks"
+                                        FunctionProviders="@FunctionProviders" ProjectId="@ProjectId" OperationTrigger="EAdminProviderFunctionTrigger.Create"/>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <FunctionsManagment
+                                        ReadOnly="@Readonly"
+                                        @bind-AfterHooks="@Table.UpdateFunctions.AfterHooks"
+                                        @bind-BeforeHooks="@Table.UpdateFunctions.BeforeHooks"
+                                        @bind-InputHooks="@Table.UpdateFunctions.InputHooks"
+                                        @bind-ValidationHooks="@Table.UpdateFunctions.ValidationHooks"
+                                        FunctionProviders="@FunctionProviders" ProjectId="@ProjectId" OperationTrigger="EAdminProviderFunctionTrigger.Update"/>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <FunctionsManagment
+                                        ReadOnly="@Readonly"
+                                        @bind-AfterHooks="@Table.DeleteFunctions.AfterHooks"
+                                        @bind-BeforeHooks="@Table.DeleteFunctions.BeforeHooks"
+                                        @bind-InputHooks="@Table.DeleteFunctions.InputHooks"
+                                        @bind-ValidationHooks="@Table.DeleteFunctions.ValidationHooks"
+                                        FunctionProviders="@FunctionProviders" ProjectId="@ProjectId" OperationTrigger="EAdminProviderFunctionTrigger.Delete"/>
+                                </MudItem>
+                            </MudStack>
+                        </MudStack>
+                    </Content>
+                </Tile>
+            </MudItem>
+        </MudStack>
+    </MudStack>
+}
+
+@code {
+
+    [Parameter] public bool Readonly { get; set; } = true;
+
+    [Parameter] public AdminProviderTableInput? Table { get; set; }
+
+    [Parameter] public IEnumerable<AdminProviderNavigationGroupInput> Groups { get; set; } = null!;
+
+    [Parameter] public EventCallback<AdminProviderTableInput> TableChanged { get; set; }
+
+    [Parameter] public List<FunctionProviderEntity> FunctionProviders { get; set; } = new();
+
+    [Parameter, EditorRequired] public string ProjectId { get; set; } = null!;
+
+    private async void OnChangeInput(Action action)
+    {
+        action.Invoke();
+        await TableChanged.InvokeAsync(Table);
+    }
+
+}

@@ -1,0 +1,100 @@
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.Models.Enums
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inject IAdminProviderService AdminProviderService
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject IJSRuntime Js
+
+
+@if (FullText)
+{
+    if (Entity.Status == EProviderStatus.Stopped && Entity.DeployedAt != null)
+    {
+        <MudButton
+            OnClick="@HandleStartClick"
+            Color="Color.Secondary"
+            StartIcon="@Icons.Material.Filled.PlayCircle"
+            Variant="Variant.Filled">
+            Start
+        </MudButton>
+    }
+    if (Entity.Status is EProviderStatus.Running or EProviderStatus.Starting)
+    {
+        <MudButton
+            OnClick="@HandleStopClick"
+            Color="Color.Secondary"
+            StartIcon="@Icons.Material.Filled.StopCircle"
+            Variant="Variant.Filled">
+            Stop
+        </MudButton>
+    }
+}
+else
+{
+    if (Entity.Status == EProviderStatus.Stopped && Entity.DeployedAt != null)
+    {
+        <MudTooltip Arrow="true" Text="Start">
+            <MudIconButton
+                Icon="@Icons.Material.Filled.PlayCircle"
+                Color="Color.Secondary"
+                Size="Size.Medium"
+                Variant="Variant.Filled"
+                OnClick="@(HandleStartClick)"/>
+        </MudTooltip>
+    }
+    if (Entity.Status is EProviderStatus.Running or EProviderStatus.Starting)
+    {
+        <MudTooltip Arrow="true" Text="Stop">
+            <MudIconButton
+                Icon="@Icons.Material.Filled.StopCircle"
+                Color="Color.Secondary"
+                Size="Size.Medium"
+                Variant="Variant.Filled"
+                OnClick="@(HandleStopClick)"/>
+        </MudTooltip>
+    }
+}
+
+@code {
+
+    [Parameter]
+    public AdminProviderEntity Entity { get; set; } = null!;
+
+    [Parameter]
+    public bool FullText { get; set; } = false;
+
+    [Parameter]
+    public HubConnection? ProviderHub { get; set; }
+
+    private async Task HandleStartClick()
+    {
+        var dialog = await DialogService.ShowAsync<StatusDialog>("Start admin provider", new DialogParameters
+        {
+            { "CurrentStatus", Entity.Status },
+            { "NewStatus", EProviderStatus.Running },
+        });
+        var result = await dialog.Result;
+
+        if (!result.Canceled && ProviderHub != null)
+        {
+            await AdminProviderService.Start(Entity, ProviderHub, SnackbarService, new CancellationToken());
+        }
+    }
+
+    private async Task HandleStopClick()
+    {
+        var dialog = await DialogService.ShowAsync<StatusDialog>("Stop admin provider", new DialogParameters
+        {
+            { "CurrentStatus", Entity.Status },
+            { "NewStatus", EProviderStatus.Stopped },
+        });
+        var result = await dialog.Result;
+
+        if (!result.Canceled && ProviderHub != null)
+        {
+            await AdminProviderService.Stop(Entity, ProviderHub, SnackbarService, new CancellationToken());
+        }
+    }
+
+}

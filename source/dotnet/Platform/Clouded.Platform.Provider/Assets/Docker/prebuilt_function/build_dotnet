@@ -1,0 +1,25 @@
+#!/bin/bash
+
+ROOT_DIR=$(pwd)
+EXECUTABLES_DIR=$1
+
+while IFS=\= read executable; do
+	_function_name=$(echo "${executable}" | yq e '.name')
+	_build_context=$(echo "${executable}" | yq e '.build.context')
+	_build_command=$(echo "${executable}" | yq e '.build.command')
+	_build_output=$(echo "${executable}" | yq e '.build.output')
+
+  cd "${ROOT_DIR}" || exit
+  cd "${_build_context}" || exit
+	eval "${_build_command}"
+	
+	_previous_name=$(basename "$(find . -name '*.csproj' -print)" .csproj)
+
+	mkdir -p "${EXECUTABLES_DIR}/${_function_name}"
+	cp -r "${_build_output}/." "${EXECUTABLES_DIR}/${_function_name}/." 
+  
+  cd "${EXECUTABLES_DIR}/${_function_name}" || exit
+  rename "s/${_previous_name}/CloudedFunctionEPRN/g" *
+done <<EOF
+$(yq e -o=j -I=0 '.executables[]' clouded.yml)
+EOF

@@ -1,0 +1,134 @@
+﻿@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/datasources"
+@using Clouded.Platform.Database.Entities.Clouded
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Shared
+@inject IDataSourceService DataSourceService
+@inject NavigationManager NavigationManager
+@inject IDbContextResolver DbContextResolver
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject ApplicationOptions Options
+
+<PageTitle>@Project.Name | Datasources</PageTitle>
+
+<div class="d-flex justify-space-between align-baseline">
+    <MudText Class="pb-8" Typo="Typo.h2">Datasources</MudText>
+    <MudButton
+        Href="@($"/projects/{ProjectId}/datasources/create")"
+        StartIcon="@Icons.Material.Filled.Add"
+        Variant="Variant.Filled"
+        Color="Color.Tertiary">
+        Add data source
+    </MudButton>
+</div>
+<MudGrid>
+    @foreach (var dataSource in _dataSources)
+    {
+        <MudItem xs="6">
+            <Tile Icon="@Icons.Material.Filled.Dns" Title="@dataSource.Name">
+                <TitleAction>
+                    <MudChip Class="mud-secondary">
+                        <MudText Typo="Typo.body2" Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">
+                            @dataSource.Configuration.Type
+                        </MudText>
+                    </MudChip>
+                </TitleAction>
+                <Content>
+                    <div class="d-flex flex-column gap-4 pa-2">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Server:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @dataSource.Configuration.Server.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey)
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Port:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @dataSource.Configuration.Port
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Database:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @dataSource.Configuration.Database.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey)
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                </Content>
+                <Actions>
+                    <MudIconButton
+                        Icon="@Icons.Material.Filled.Delete"
+                        Color="Color.Secondary"
+                        Size="Size.Medium"
+                        Variant="Variant.Filled"
+                        OnClick="@(() => HandleRemoveClick(dataSource))"/>
+                    <MudButton
+                        Class="ml-auto"
+                        Variant="Variant.Filled"
+                        Color="Color.Tertiary"
+                        OnClick="@(() => HandleDetailClick(dataSource))"
+                        EndIcon="@Icons.Material.Filled.ChevronRight">
+                        Show detail
+                    </MudButton>
+                </Actions>
+            </Tile>
+        </MudItem>
+    }
+</MudGrid>
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private CloudedDbContext _dbContext = null!;
+    private List<DataSourceEntity> _dataSources = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+
+        _dataSources = await _dbContext
+            .GetAll<DataSourceEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .OrderBy(x => x.Name)
+            .ToListAsync(CancellationToken);
+    }
+
+    private async Task HandleRemoveClick(DataSourceEntity dataSource)
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DataSourceService.DeleteAsync(dataSource, cancellationToken: CancellationToken);
+            _dataSources.RemoveAll(x => x.Id == dataSource.Id);
+            SnackbarService.Add("Deleted", Severity.Success);
+        }
+    }
+
+    private void HandleDetailClick(DataSourceEntity dataSource)
+    {
+        NavigationManager.NavigateTo($"/projects/{ProjectId}/datasources/{dataSource.Id}");
+    }
+}

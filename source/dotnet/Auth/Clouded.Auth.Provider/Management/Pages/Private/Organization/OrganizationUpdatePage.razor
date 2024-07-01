@@ -1,0 +1,161 @@
+@page "/management/organizations/{OrganizationId}"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IOrganizationDataSource OrganizationDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Update organization</MudText>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-2">
+                <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Organization attributes</MudText>
+                <GenericFields
+                    TDictionary="OrganizationDictionary"
+                    Columns="@_organizationColumns"
+                    IdColumnName="@Options.Clouded.Auth.Identity.Organization!.ColumnId"
+                    @bind-Data="_organization"/>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MetaDataManager
+                @bind-MetaData="_organizationMetaData"/>
+        </MudItem>
+
+
+        <MudItem xs="12">
+            <OrganizationUsersManager
+                OrganizationId="@OrganizationId"
+                @bind-SelectedUsers="_organizationUsers"/>
+        </MudItem>
+        
+        <MudItem Class="d-flex justify-between" xs="12">
+            <MudButton
+                HtmlTag="a"
+                Href="/management/organizations"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <div class="ml-auto">
+                <MudButton
+                    OnClick="Delete"
+                    StartIcon="@Icons.Material.Filled.DeleteForever"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Delete
+                </MudButton>
+                <MudButton
+                    OnClick="Update"
+                    StartIcon="@Icons.Material.Filled.Check"
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary"
+                    Class="ml-auto">
+                    Update
+                </MudButton>
+            </div>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public string? OrganizationId { get; set; }
+
+    private bool _initiallyLoaded;
+
+    private IEnumerable<ColumnResult> _organizationColumns = null!;
+    private OrganizationDictionary _organization = new();
+    private IEnumerable<UserDictionary> _organizationUsers = Array.Empty<UserDictionary>();
+    private Dictionary<string, object?> _organizationMetaData = new();
+
+    protected override void OnInitialized()
+    {
+        _organizationColumns = OrganizationDataSource.GetEntityColumns();
+        _organization = OrganizationDataSource.EntityFindById(OrganizationId);
+        _organizationUsers = OrganizationDataSource.OrganizationUsers(OrganizationId);
+        _organizationMetaData = OrganizationDataSource.EntityMetaData(OrganizationId);
+        
+        _initiallyLoaded = true;
+    }
+
+    private void Update()
+    {
+        // Users
+        var organizationPreviousUsers = OrganizationDataSource
+            .OrganizationUsers(OrganizationId)
+            .ToArray();
+        
+        var organizationUserIdsToBeRemoved = organizationPreviousUsers
+            .Where
+            (
+                previousUser =>
+                    _organizationUsers.All
+                    (
+                        user => !user.Id.Equals(previousUser.Id)
+                    )
+            )
+            .Select
+            (
+                user => user.Id
+            )
+            .ToArray();
+
+        if (organizationUserIdsToBeRemoved.Any())
+        {
+            OrganizationDataSource.OrganizationUsersRemove
+            (
+                OrganizationId,
+                organizationUserIdsToBeRemoved
+            );
+        }
+
+        var organizationUserIdsToBeAdded = _organizationUsers
+            .Where
+            (
+                user => 
+                    organizationPreviousUsers.All
+                    (
+                        previousUser => !previousUser.Id.Equals(user.Id)
+                    )
+            )
+            .Select
+            (
+                user => user.Id
+            )
+            .ToArray();
+
+        if (organizationUserIdsToBeAdded.Any())
+        {
+            OrganizationDataSource.OrganizationUsersAdd
+            (
+                OrganizationId, 
+                organizationUserIdsToBeAdded
+            );
+        }
+        
+        OrganizationDataSource.EntityMetaDataUpdate(OrganizationId, _organizationMetaData);
+        OrganizationDataSource.EntityUpdate(OrganizationId, _organization);
+
+        Snackbar.Add("Updated", Severity.Success);
+    }
+
+    private void Delete()
+    {
+        OrganizationDataSource.EntityDelete(OrganizationId);
+        
+        Snackbar.Add("Deleted", Severity.Success);
+        NavigationManager.NavigateTo("/management/organizations");
+    }
+}

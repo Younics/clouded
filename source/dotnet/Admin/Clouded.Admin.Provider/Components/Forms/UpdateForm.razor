@@ -1,0 +1,314 @@
+@using Clouded.Admin.Provider.Extensions
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Core.DataSource.Api.Helpers
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Function.Framework.Contexts
+@using Clouded.Function.Framework.Contexts.Base
+@using Clouded.Function.Library.Services
+@using Clouded.Function.Shared
+@using Clouded.Admin.Provider.Contexts
+@using Clouded.Core.DataSource.Shared.Input
+@using Microsoft.Extensions.Primitives
+@using Npgsql
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject IFunctionService FunctionService
+@inject IWebHostEnvironment Environment
+
+<MudForm @ref="_form" @bind-IsValid="@_success" @bind-Errors="@_errors">
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h4">@(FormType == FormType.Read ? "Detail of " + (Table.SingularName?.ToLower() ?? Table.Name.ToLower()) : "Update " + (Table.SingularName?.ToLower() ?? Table.Name.ToLower()))</MudText>
+        </MudItem>
+
+        <MudItem xs="12" md="12" lg="12">
+            <MudPaper Class="pa-2">
+                <MudStack Class="mb-4" Row="@true">
+                    <MudText Class="mud-background flex-grow-1 rounded px-4 py-1" Typo="Typo.h6">@(Table.SingularName ?? Table.Name) attributes</MudText>
+
+                    @if (FormType == FormType.Read)
+                    {
+                        <MudIconButton
+                            Class="px-2"
+                            HtmlTag="a"
+                            Href="@Entity.ToEntityDetailUri(Columns ?? Array.Empty<ColumnResult>(), $"/management/{Table.Table}/edit")"
+                            ButtonType="ButtonType.Button"
+                            Variant="Variant.Filled"
+                            Icon="@Icons.Material.Filled.Edit"
+                            Title="Edit"
+                            Color="Color.Tertiary"/>
+
+                        <MudIconButton
+                            Class="px-2"
+                            OnClick="@DeleteAsync"
+                            ButtonType="ButtonType.Button"
+                            Variant="Variant.Filled"
+                            Icon="@Icons.Material.Filled.Delete"
+                            Title="Delete"
+                            Color="Color.Tertiary"/>
+                    }
+                </MudStack>
+
+                <GenericFields
+                    FormType="@FormType"
+                    Options="@Table"
+                    Context="@Context"
+                    Columns="@Columns"
+                    Relations="@InsideRelations"
+                    @bind-Data="Entity"/>
+            </MudPaper>
+        </MudItem>
+
+        @if (!IsDetail)
+        {
+            <MudItem Class="d-flex justify-between" xs="12">
+                <MudButton
+                    OnClick="OnCancel"
+                    StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Cancel
+                </MudButton>
+                <div class="ml-auto">
+                    <MudButton
+                        OnClick="OnSubmitAsync"
+                        StartIcon="@Icons.Material.Filled.Check"
+                        Variant="Variant.Filled"
+                        Color="Color.Tertiary"
+                        Class="ml-auto">
+                        Update
+                    </MudButton>
+                </div>
+            </MudItem>
+        }
+    </MudGrid>
+</MudForm>
+
+@code {
+
+    [Parameter]
+    public required FormType FormType { get; set; }
+
+    [Parameter]
+    public Action? OnSubmitClb { get; set; }
+
+    [Parameter]
+    public Action? OnCancelClb { get; set; }
+
+    [Parameter]
+    public TableOptions Table { get; set; } = null!;
+
+    [Parameter]
+    public bool IsDetail { get; set; } = true;
+
+    [Parameter]
+    public AdminContext? Context { get; set; }
+
+    [Parameter]
+    public IEnumerable<ColumnResult>? Columns { get; set; }
+
+    [Parameter]
+    public IEnumerable<RelationResult>? InsideRelations { get; set; }
+
+    [Parameter]
+    public DataSourceDictionary Entity { get; set; } = new();
+
+    [Parameter]
+    public Dictionary<string, StringValues>? PrimaryKeys { get; set; }
+
+    [Parameter]
+    public IEnumerable<RelationResult>? OutsideRelations { get; set; }
+
+    [Parameter]
+    public List<TableOptions> Tables { get; set; } = new();
+
+    private MudForm? _form;
+    private bool _success;
+    private string[] _errors = { };
+
+    private void OnCancel()
+    {
+        OnCancelClb?.Invoke();
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        if (Columns == null || PrimaryKeys == null || Context == null)
+            return;
+
+        await _form?.Validate()!;
+        if (!_success)
+        {
+            return;
+        }
+
+        var updateData = Entity;
+
+        if (InsideRelations != null)
+        {
+            foreach (var insideRelation in InsideRelations)
+            {
+                updateData[insideRelation.Column] = (Entity[insideRelation.Column] as DataSourceDictionary)[insideRelation.TargetColumn];
+            }
+        }
+
+        var loadedPaths = await FileHelper.LoadTmpFiles(Columns, Entity, updateData);
+
+    #region ValidationFunctions
+
+        var ctx = new ValidationContext
+        {
+            Data = updateData
+        };
+        var validationOutputs = await ctx.ExecuteValidationFunctions(
+            FunctionService,
+            Options.Clouded.Admin.FunctionProviders,
+            Options.Clouded.Admin.GlobalCreateOperationFunctions,
+            Table?.CreateOperationFunctions
+            );
+        if (validationOutputs.Any(i => !i.Passed))
+        {
+            Snackbar.Add("<b>Validation not passed:</b> <br><ul>" + string.Join("", validationOutputs
+                .Where(i => !i.Passed)
+                .Select(i => $"<li>{i.Message}</li>")
+                ) + "</ul>", Severity.Error);
+            return;
+        }
+
+    #endregion
+
+    #region BeforeHooks
+
+        Options.Clouded.Admin.GlobalUpdateOperationFunctions?.BeforeHooks?.ExecuteVoidHooks(EFunctionType.BeforeHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext { Data = updateData });
+        Table?.UpdateOperationFunctions?.BeforeHooks?.ExecuteVoidHooks(EFunctionType.BeforeHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext { Data = updateData });
+
+    #endregion
+
+    #region InputHooks
+
+        if (Options.Clouded.Admin.GlobalUpdateOperationFunctions?.InputHooks != null)
+        {
+            updateData = await Options.Clouded.Admin.GlobalUpdateOperationFunctions?.InputHooks?.ExecuteDataHooks(EFunctionType.InputHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext { Data = updateData });
+        }
+        if (Table?.UpdateOperationFunctions?.InputHooks != null)
+        {
+            updateData = await Table?.UpdateOperationFunctions?.InputHooks?.ExecuteDataHooks(EFunctionType.InputHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext { Data = updateData });
+        }
+
+    #endregion
+
+        try
+        {
+            Context.Update
+                (
+                    new UpdateInput
+                    {
+                        Schema = Table.Schema,
+                        Table = Table.Table,
+                        Alias = Table.Table,
+                        Data = updateData,
+                        Where = new ConditionAndInput
+                        {
+                            Conditions = ColumnHelper.Where(Table.Table, PrimaryKeys, Columns)
+                        }
+                    }
+                );
+
+            loadedPaths.DeleteFiles();
+
+    #region AfterHooks
+
+            Options.Clouded.Admin.GlobalUpdateOperationFunctions?.AfterHooks?.ExecuteVoidHooks(EFunctionType.AfterHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext { Data = updateData });
+            Table?.UpdateOperationFunctions?.AfterHooks?.ExecuteVoidHooks(EFunctionType.AfterHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext { Data = updateData });
+
+    #endregion
+
+            Snackbar.Add("Updated", Severity.Success);
+
+            OnSubmitClb?.Invoke();
+        }
+        catch (PostgresException e)
+        {
+            Snackbar.Add($"Database exception: {e.MessageText}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (Columns == null || PrimaryKeys == null || Context == null)
+            return;
+
+        var outsideRelations = OutsideRelations?.Where(x => x.Table == Table.Table && x.Schema == Table.Schema).ToList();
+        var parameters = new DialogParameters
+        {
+            {
+                "CascadeOption", outsideRelations?.Count > 0
+            }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteDialog>("Are you sure?", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+    #region ValidationFunctions
+
+            var ctx = new ValidationContext
+            {
+                Data = Entity
+            };
+            var validationOutputs = await ctx.ExecuteValidationFunctions(
+                FunctionService,
+                Options.Clouded.Admin.FunctionProviders,
+                Options.Clouded.Admin.GlobalDeleteOperationFunctions,
+                Table?.DeleteOperationFunctions
+                );
+            if (validationOutputs.Any(i => !i.Passed))
+            {
+                Snackbar.Add("<b>Validation not passed:</b> <br><ul>" + string.Join("", validationOutputs
+                    .Where(i => !i.Passed)
+                    .Select(i => $"<li>{i.Message}</li>")
+                    ) + "</ul>", Severity.Error);
+                return;
+            }
+
+    #endregion
+
+    #region BeforeHooks
+
+            Options.Clouded.Admin.GlobalDeleteOperationFunctions?.BeforeHooks?.ExecuteVoidHooks(EFunctionType.BeforeHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+            Table?.DeleteOperationFunctions?.BeforeHooks?.ExecuteVoidHooks(EFunctionType.BeforeHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+
+    #endregion
+
+            if ((bool)(result.Data?.GetType().GetProperty("cascade")?.GetValue(result.Data) ?? false))
+            {
+                outsideRelations?.CascadeDeleteRelations(Entity, Context);
+            }
+
+            Context.Delete(new DeleteInput
+            {
+                Schema = Table.Schema,
+                Table = Table.Table,
+                Alias = Table.Table,
+                Where = new ConditionAndInput
+                {
+                    Conditions = ColumnHelper.Where(Table.Table, PrimaryKeys, Columns)
+                }
+            });
+
+    #region AfterHooks
+
+            Options.Clouded.Admin.GlobalDeleteOperationFunctions?.AfterHooks?.ExecuteVoidHooks(EFunctionType.AfterHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+            Table?.DeleteOperationFunctions?.AfterHooks?.ExecuteVoidHooks(EFunctionType.AfterHook, Options.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+
+    #endregion
+
+            Snackbar.Add("Deleted", Severity.Success);
+            NavigationManager.NavigateTo($"/management/{Table.Table}");
+        }
+    }
+
+}

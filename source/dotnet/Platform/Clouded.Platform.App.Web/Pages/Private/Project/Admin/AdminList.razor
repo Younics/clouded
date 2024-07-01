@@ -1,0 +1,238 @@
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.Models.Dtos.Hub
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/admin_panels"
+@inject IAdminProviderService AdminProviderService
+@inject IDataSourceService DataSourceService
+@inject IFunctionProviderService FunctionProviderService
+@inject IDbContextResolver DbContextResolver
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject IStorageService StorageService
+@inject ISnackbar Snackbar
+@inject IJSRuntime Js
+
+<PageTitle>@Project.Name | Admin panels</PageTitle>
+
+<div class="d-flex justify-space-between align-baseline">
+    <MudText Class="pb-8" Typo="Typo.h2">Admin panels</MudText>
+    <MudButton
+        Href="@($"/projects/{ProjectId}/admin_panels/create")"
+        StartIcon="@Icons.Material.Filled.Add"
+        Variant="Variant.Filled"
+        Color="Color.Tertiary">
+        Add admin panel
+    </MudButton>
+</div>
+<MudGrid>
+    @foreach (var entity in _providerEntities)
+    {
+        <MudItem xs="6">
+            <Tile Icon="@Icons.Material.Filled.AdminPanelSettings" Title="@entity.Name">
+                <TitleAction>
+                    <MudChip Class="mud-secondary">
+                        <MudText Typo="Typo.body2" Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">
+                            @entity.Code
+                        </MudText>
+                    </MudChip>
+                </TitleAction>
+                <Content>
+                    <div class="d-flex flex-column gap-4 pa-2">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Name:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @entity.Name
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Status:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <ProviderStatus Status="entity.Status" DomainAddress="@(entity.GetDomainAddress())"/>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Last deploy:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @((object)entity.DeployedAt?.ToString("g") ?? '-')
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4" Style="display: flex">
+                                <MudText Typo="Typo.body2">
+                                    Datasources:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                @foreach (var dataSource in entity.DataSources)
+                                {
+                                    <MudStack Row="@false">
+                                        <MudStack Row="@true" AlignItems="AlignItems.Center">
+                                            <MudText Typo="Typo.body2">
+                                                @dataSource.Name
+                                            </MudText>
+
+                                            <MudIconButton
+                                                Icon="@Icons.Material.Filled.KeyboardArrowRight"
+                                                Color="Color.Secondary"
+                                                Size="Size.Small"
+                                                Variant="Variant.Filled"
+                                                HtmlTag="a"
+                                                Href="@DataSourceService.GetDetailRoute(ProjectId, dataSource.Id)"/>
+                                        </MudStack>
+                                    </MudStack>
+                                }
+                            </MudItem>
+                            <MudItem xs="4" Style="display: flex">
+                                <MudText Typo="Typo.body2">
+                                    Functions:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                @if (!entity.Functions.Any())
+                                {
+                                    <MudText Typo="Typo.body2">
+                                        -
+                                    </MudText>
+                                }
+                                else
+                                {
+                                    @foreach (var functionProviderEntity in entity.Functions.Select(x => x.Provider).Distinct())
+                                    {
+                                        <MudStack Row="@false">
+                                            <MudStack Row="@true" AlignItems="AlignItems.Center">
+                                                <MudText Typo="Typo.body2">
+                                                    @functionProviderEntity.Name
+                                                </MudText>
+
+                                                <MudIconButton
+                                                    Icon="@Icons.Material.Filled.KeyboardArrowRight"
+                                                    Color="Color.Secondary"
+                                                    Size="Size.Small"
+                                                    Variant="Variant.Filled"
+                                                    HtmlTag="a"
+                                                    Href="@FunctionProviderService.GetDetailRoute(ProjectId, functionProviderEntity.Id)"/>
+                                            </MudStack>
+                                        </MudStack>
+                                    }
+                                }
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                </Content>
+                <Actions>
+                    <AdminDeployButtons Entity="@entity" ProviderHub="@_providerHub"/>
+                    <AdminStatusButton Entity="@entity" ProviderHub="@_providerHub"/>
+
+                    <MudTooltip Arrow="true" Text="Delete">
+                        <MudIconButton
+                            Class="ml-auto"
+                            Icon="@Icons.Material.Filled.Delete"
+                            Color="Color.Secondary"
+                            Size="Size.Medium"
+                            Variant="Variant.Filled"
+                            OnClick="@(() => HandleRemoveClick(entity))"/>
+                    </MudTooltip>
+                    <MudButton Class="ml-auto"
+                               Variant="Variant.Filled"
+                               Color="Color.Tertiary"
+                               HtmlTag="a"
+                               Href="@AdminProviderService.GetDetailRoute(ProjectId, entity.Id)"
+                               EndIcon="@Icons.Material.Filled.ChevronRight">
+                        Show detail
+                    </MudButton>
+                </Actions>
+            </Tile>
+        </MudItem>
+    }
+</MudGrid>
+
+@code
+{
+    [Parameter] public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")] public ProjectEntity Project { get; set; } = null!;
+
+    private CloudedDbContext _dbContext = null!;
+    private List<AdminProviderEntity> _providerEntities = new();
+    private HubConnection? _providerHub;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+
+        _providerEntities = await _dbContext
+            .GetAll<AdminProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .OrderBy(x => x.Name)
+            .ToListAsync(CancellationToken);
+
+        _providerHub = AdminProviderService.GetProviderHub(StorageService);
+
+        _providerHub.On<HubProviderProcessingOutput>
+        (
+            nameof(HubProviderProcessingOutput),
+            output =>
+            {
+                if (output.Success)
+                {
+                    var provider = _providerEntities.Find(i => i.Id == output.Id);
+                    if (provider != null && output.DeployedAt != null)
+                    {
+                        provider.DeployedAt = output.DeployedAt;
+                    }
+
+                    Snackbar.Add(output.SuccessMessage, Severity.Success);
+                }
+                else
+                {
+                    Snackbar.Add(output.ErrorMessage, Severity.Error);
+                }
+
+                InvokeAsync(StateHasChanged);
+            }
+        );
+
+        _providerHub.On<HubProviderUpdateStatus>
+        (
+            nameof(HubProviderUpdateStatus),
+            output =>
+            {
+                var provider = _providerEntities.Find(i => i.Id == output.Id);
+
+                if (provider != null && output.DeployAt != null && DateTime.Compare((DateTime)provider.DeployedAt, (DateTime)output.DeployAt) == 0)
+                {
+                    provider.Status = output.Status;
+
+                    InvokeAsync(StateHasChanged);
+                }
+            }
+        );
+
+        await _providerHub.StartAsync();
+    }
+
+    private async Task HandleRemoveClick(AdminProviderEntity entity)
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await AdminProviderService.DeleteAsync(entity, _providerHub!, SnackbarService, cancellationToken: CancellationToken);
+            _providerEntities.RemoveAll(x => x.Id == entity.Id);
+            SnackbarService.Add("Deleted", Severity.Success);
+        }
+    }
+}

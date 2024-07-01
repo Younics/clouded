@@ -1,0 +1,209 @@
+@using Clouded.Shared
+@using Clouded.Shared.Enums
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Function.Shared
+@inherits CancellableComponentBase
+
+<MudCard Class="mb-2">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@(OperationTrigger.GetEnumName()) operations</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudStack Row="@false">
+            <MudSelect
+                T="long"
+                Placeholder="Choose an option"
+                Variant="Variant.Outlined"
+                Label="Validation hooks"
+                MultiSelection="@true"
+                ReadOnly="@ReadOnly"
+                TextChanged="HooksChanged"
+                @bind-SelectedValues="ValidationHooks"
+                MultiSelectionTextFunc="@(list => $"{string.Join(", ", _validationHooksEntities.Where(i => list.Any(x => x == i.Id.ToString())).Select(i => i.Name))}")">
+
+                @foreach (var hook in _validationHooksEntities)
+                {
+                    <MudSelectItem T="long" Value="hook.Id">@hook.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            @* <MudDropContainer *@
+            @*     T="FunctionItem" *@
+            @*     Items="@_validationHooksOrderItems" *@
+            @*     @ref="_validationHooksOrder" *@
+            @*     ItemsSelector="@((item, dropzone) => true)" *@
+            @*     ItemDropped="@((MudItemDropInfo<FunctionItem> arg) => HooksOrderUpdated(ValidationHooks, arg))" *@
+            @*     Class="d-flex flex-wrap flex-grow-1"> *@
+            @*     <ChildContent> *@
+            @*         <MudList Class="d-flex flex-column mud-height-full"> *@
+            @*             <MudListSubheader>Execution order of functions</MudListSubheader> *@
+            @*             <MudDropZone T="FunctionItem" Identifier="columns" Class="flex-grow-1" AllowReorder="@ReadOnly"/> *@
+            @*         </MudList> *@
+            @*     </ChildContent> *@
+            @*     <ItemRenderer> *@
+            @*         <MudListItem Text="@($"{context.Order}. {context.Name}")"/> *@
+            @*     </ItemRenderer> *@
+            @* </MudDropContainer> *@
+            @* @foreach (var x in _validationHooksOrderItems) *@
+            @* { *@
+            @*     @(x.Id) *@
+            @* } *@
+            @* <br> *@
+            @* @foreach (var x in ValidationHooks) *@
+            @* { *@
+            @*     @(x) *@
+            @* } *@
+
+
+            <MudSelect
+                T="long"
+                Placeholder="Choose an option"
+                Variant="Variant.Outlined"
+                Label="Before hooks"
+                MultiSelection="@true"
+                ReadOnly="@ReadOnly"
+                SelectedValues="BeforeHooks"
+                SelectedValuesChanged="BeforeHooksChanged"
+                MultiSelectionTextFunc="@(list => $"{string.Join(", ", _beforeHooksEntities.Where(i => BeforeHooks.Any(x => x == i.Id)).Select(i => i.Name))}")">
+
+                @foreach (var hook in _beforeHooksEntities)
+                {
+                    <MudSelectItem T="long" Value="hook.Id">@hook.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect
+                T="long"
+                Placeholder="Choose an option"
+                Variant="Variant.Outlined"
+                Label="Input hooks"
+                MultiSelection="@true"
+                ReadOnly="@ReadOnly"
+                SelectedValues="InputHooks"
+                SelectedValuesChanged="InputHooksChanged"
+                MultiSelectionTextFunc="@(list => $"{string.Join(", ", _inputHooksEntities.Where(i => InputHooks.Any(x => x == i.Id)).Select(i => i.Name))}")">
+
+                @foreach (var hook in _inputHooksEntities)
+                {
+                    <MudSelectItem T="long" Value="hook.Id">@hook.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect
+                T="long"
+                Placeholder="Choose an option"
+                Variant="Variant.Outlined"
+                Label="After hooks"
+                MultiSelection="@true"
+                ReadOnly="@ReadOnly"
+                SelectedValues="AfterHooks"
+                SelectedValuesChanged="AfterHooksChanged"
+                MultiSelectionTextFunc="@(list => $"{string.Join(", ", _afterHooksEntities.Where(i => AfterHooks.Any(x => x == i.Id)).Select(i => i.Name))}")">
+
+                @foreach (var hook in _afterHooksEntities)
+                {
+                    <MudSelectItem T="long" Value="hook.Id">@hook.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+
+    </MudCardContent>
+</MudCard>
+
+@code {
+
+    [Parameter, EditorRequired] public string ProjectId { get; set; } = null!;
+
+    [Parameter] public bool ReadOnly { get; set; } = true;
+
+    [Parameter] public EAdminProviderFunctionTrigger OperationTrigger { get; set; }
+
+    [Parameter] public List<FunctionProviderEntity> FunctionProviders { get; set; } = new();
+
+    [Parameter] public IEnumerable<long> ValidationHooks { get; set; } = null!;
+
+    [Parameter] public EventCallback<IEnumerable<long>> ValidationHooksChanged { get; set; }
+
+    [Parameter] public IEnumerable<long> InputHooks { get; set; } = null!;
+
+    [Parameter] public EventCallback<IEnumerable<long>> InputHooksChanged { get; set; }
+
+    [Parameter] public IEnumerable<long> BeforeHooks { get; set; } = null!;
+
+    [Parameter] public EventCallback<IEnumerable<long>> BeforeHooksChanged { get; set; }
+
+    [Parameter] public IEnumerable<long> AfterHooks { get; set; } = null!;
+
+    [Parameter] public EventCallback<IEnumerable<long>> AfterHooksChanged { get; set; }
+
+    private List<FunctionEntity> _inputHooksEntities = new();
+    private List<FunctionEntity> _validationHooksEntities = new();
+    private List<FunctionEntity> _beforeHooksEntities = new();
+    private List<FunctionEntity> _afterHooksEntities = new();
+
+    private List<FunctionItem> _inputHooksOrderItems = new();
+    private List<FunctionItem> _validationHooksOrderItems = new();
+    private List<FunctionItem> _beforeHooksOrderItems = new();
+    private List<FunctionItem> _afterHooksOrderItems = new();
+
+    private MudDropContainer<FunctionItem>? _validationHooksOrder;
+
+    protected override void OnInitialized()
+    {
+        _inputHooksEntities = GetFunctionsByType(EFunctionType.InputHook);
+        _validationHooksEntities = GetFunctionsByType(EFunctionType.ValidationHook);
+        _beforeHooksEntities = GetFunctionsByType(EFunctionType.BeforeHook);
+        _afterHooksEntities = GetFunctionsByType(EFunctionType.AfterHook);
+
+        HooksChanged();
+    }
+
+
+    private List<FunctionEntity> GetFunctionsByType(EFunctionType eFunctionType)
+    {
+        return FunctionProviders.Select(x => x.Functions)
+            .Aggregate(new List<FunctionEntity>(), (acc, x) =>
+            {
+                acc.AddRange(x);
+                return acc;
+            })
+            .Where(x => x.Type == eFunctionType)
+            .ToList();
+    }
+
+    private Task HooksOrderUpdated(IEnumerable<long> hooks, MudItemDropInfo<FunctionItem> arg)
+    {
+        return Task.CompletedTask;
+    }
+
+    public class FunctionItem
+    {
+        public long Id { get; init; }
+        public required string Name { get; init; }
+        public int Order { get; set; }
+    }
+
+    private void HooksChanged()
+    {
+        _inputHooksOrderItems = HooksToOrderedItems(InputHooks, _inputHooksEntities);
+        _validationHooksOrderItems = HooksToOrderedItems(ValidationHooks, _validationHooksEntities);
+        _beforeHooksOrderItems = HooksToOrderedItems(BeforeHooks, _beforeHooksEntities);
+        _afterHooksOrderItems = HooksToOrderedItems(AfterHooks, _afterHooksEntities);
+
+        _validationHooksOrder?.Refresh();
+        StateHasChanged();
+
+        return;
+
+        List<FunctionItem> HooksToOrderedItems(IEnumerable<long> inputHooksIds, List<FunctionEntity> inputHooksEntities)
+        {
+            return inputHooksIds.Select((id, index) => new FunctionItem
+            {
+                Order = index,
+                Id = id,
+                Name = inputHooksEntities.Find(x => x.Id == id)!.Name
+            }).ToList();
+        }
+    }
+
+}

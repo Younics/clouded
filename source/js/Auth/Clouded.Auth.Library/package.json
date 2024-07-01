@@ -1,0 +1,54 @@
+{
+  "name": "@younics/clouded-auth-client",
+  "version": "2.0.3",
+  "description": "Clouded auth client library",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write \"src/**/*.(js|ts)\"",
+    "lint": "eslint src --ext .js,.ts",
+    "lint:fix": "eslint src --fix --ext .js,.ts",
+    "test": "jest --config jest.config.js",
+    "prepare": "ts-patch install -s && npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "preversion": "npm run lint",
+    "version": "npm run format && git add -A src",
+    "postversion": "git push && git push --tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Younics/clouded.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "keywords": [
+    "clouded",
+    "auth",
+    "provider"
+  ],
+  "author": "Younics",
+  "dependencies": {
+    "node-fetch": "^2.6.11"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.4.0",
+    "@types/node": "^20.3.1",
+    "@types/node-fetch": "^2.6.4",
+    "@typescript-eslint/eslint-plugin": "5.38.0",
+    "@typescript-eslint/parser": "5.38.0",
+    "eslint": "8.23.1",
+    "eslint-plugin-jest": "27.0.4",
+    "jest": "29.0.3",
+    "prettier": "2.7.1",
+    "ts-jest": "29.0.1",
+    "ts-node": "^10.9.1",
+    "ts-patch": "^2.0.2",
+    "typescript": "4.8.3",
+    "typescript-transform-paths": "^3.3.1"
+  },
+  "files": [
+    "lib/**/*"
+  ]
+}

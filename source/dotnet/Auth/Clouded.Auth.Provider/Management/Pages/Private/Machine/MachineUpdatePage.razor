@@ -1,0 +1,450 @@
+@page "/management/machines/{MachineId}"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@using Clouded.Auth.Provider.Dictionaries.Enums
+@using Clouded.Shared.Enums
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IMachineDataSource MachineDataSource
+@inject IRoleDataSource RoleDataSource
+@inject IPermissionDataSource PermissionDataSource
+@inject IDomainDataSource DomainDataSource
+@inject IClipboard Clipboard
+
+@if (_initiallyLoaded)
+{
+    <EditForm Model="@_machine">
+        <DataAnnotationsValidator/>
+        <MudGrid Spacing="4">
+            <MudItem xs="12">
+                <MudText Typo="Typo.h2">Update machine</MudText>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-2">
+                    <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Machine attributes</MudText>
+                    <MudGrid Spacing="1">
+
+                        <MudItem xs="12">
+                            <GenericField
+                                Name="@Options.Clouded.Auth.Identity.Machine!.ColumnIdentity"
+                                Type="@EColumnType.Text"
+                                @bind-Value="_machine.Identity"/>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <GenericField
+                                Name="@Options.Clouded.Auth.Identity.Machine!.ColumnDescription"
+                                Type="@EColumnType.Text"
+                                @bind-Value="_machine[Options.Clouded.Auth.Identity.Machine!.ColumnDescription]"/>
+                        </MudItem>
+
+                        <MudItem xs="12">
+                            <MudSelect
+                                T="string?"
+                                Value="(string?)_machine.Type"
+                                ValueChanged="@(s => _machine.Type = s)"
+                                Label="Type"
+                                Variant="Variant.Outlined">
+                                <MudSelectItem Value="@(MachineType.Api)">@MachineType.Api</MudSelectItem>
+                                <MudSelectItem Value="@(MachineType.Service)">@MachineType.Service</MudSelectItem>
+                                @* <MudSelectItem Value="@(MachineType.Spa)">@MachineType.Spa</MudSelectItem> *@
+                            </MudSelect>
+                        </MudItem>
+
+                        @if (_machine.Type != null && _machine.Type == MachineType.Service)
+                        {
+                            <MudItem xs="12">
+                                <GenericField
+                                    Name="@Options.Clouded.Auth.Identity.Machine!.ColumnExpiresIn"
+                                    Type="@EColumnType.Double"
+                                    @bind-Value="_machine[Options.Clouded.Auth.Identity.Machine!.ColumnExpiresIn]"/>
+                            </MudItem>
+                        }
+
+                        <MudItem xs="12">
+                            <MudField
+                                T="string?"
+                                ReadOnly="true"
+                                Adornment="Adornment.End"
+                                AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                                OnAdornmentClick="() => CopyToClipboard(_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine!.ColumnApiKey))"
+                                Variant="Variant.Outlined"
+                                Label="Api key">
+                                <MudText Style="word-break: break-word">
+                                    @_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine!.ColumnApiKey)
+                                </MudText>
+                            </MudField>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudField
+                                T="string?"
+                                ReadOnly="true"
+                                Adornment="Adornment.End"
+                                AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                                OnAdornmentClick="() => CopyToClipboard(_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine!.ColumnSecretKey))"
+                                Variant="Variant.Outlined"
+                                Label="Secret key">
+                                <MudText Style="word-break: break-word">
+                                    @_machine.GetValueOrDefault(Options.Clouded.Auth.Identity.Machine!.ColumnSecretKey)
+                                </MudText>
+                            </MudField>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudStack Row="@false" Spacing="4">
+                    <MetaDataManager
+                        @bind-MetaData="_machineMetaData"/>
+
+                    <MachineSupportDataManager
+                        @bind-Data="_machine"/>
+                </MudStack>
+            </MudItem>
+
+            @if (_machine.Type != MachineType.Service)
+            {
+                <MudItem xs="12" lg="8">
+                    <MudPaper Class="pa-2">
+                        <div Class="align-center mud-background rounded pa-2 pl-4 mb-2">
+                            <MudText Typo="Typo.h6">Domains</MudText>
+                        </div>
+
+                        <MudGrid
+                            Justify="Justify.SpaceBetween"
+                            Spacing="2">
+                            <MudItem xs="6">
+                                <DomainManager
+                                    IdKey="@Options.Clouded.Auth.Identity.Domain!.ColumnId"
+                                    IdentityKey="@Options.Clouded.Auth.Identity.Domain!.ColumnIdentity"
+                                    Domains="@_domains"
+                                    @bind-SelectedDomains="_machineDomains"/>
+                            </MudItem>
+                        </MudGrid>
+
+                    </MudPaper>
+                </MudItem>
+            }
+
+            <MudItem xs="12" lg="8">
+                <MudPaper Class="pa-2">
+                    <div Class="align-center mud-background rounded pa-2 pl-4 mb-2">
+                        <MudText Typo="Typo.h6">
+                            @if (_machine.Type == MachineType.Api)
+                            {
+                                <span>Allowed scope of roles and permissions</span>
+                            }
+                            else
+                            {
+                                <span>Roles and permissions</span>
+                            }
+                        </MudText>
+                    </div>
+
+                    <MudGrid
+                        Justify="Justify.SpaceBetween"
+                        Spacing="2">
+                        <MudItem xs="6">
+                            @if (Options.Clouded.Auth.Identity.Role != null)
+                            {
+                                <RoleManager
+                                    IdKey="@Options.Clouded.Auth.Identity.Role!.ColumnId"
+                                    IdentityKey="@Options.Clouded.Auth.Identity.Role!.ColumnIdentity"
+                                    Roles="@_roles"
+                                    @bind-SelectedRoles="_machineRoles"/>
+                            }
+                        </MudItem>
+                        <MudItem xs="6">
+                            @if (Options.Clouded.Auth.Identity.Permission != null)
+                            {
+                                <PermissionManager
+                                    IdKey="@Options.Clouded.Auth.Identity.Permission!.ColumnId"
+                                    IdentityKey="@Options.Clouded.Auth.Identity.Permission!.ColumnIdentity"
+                                    Permissions="@_permissions"
+                                    @bind-SelectedPermissions="_machinePermissions"/>
+                            }
+                        </MudItem>
+                    </MudGrid>
+
+                </MudPaper>
+            </MudItem>
+
+            <MudItem Class="d-flex justify-between" xs="12">
+                <MudButton
+                    OnClick="@(() => NavigationManager.NavigateTo("/management/machines"))"
+                    StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Cancel
+                </MudButton>
+                <div class="ml-auto">
+                    <MudButton
+                        OnClick="Delete"
+                        StartIcon="@Icons.Material.Filled.DeleteForever"
+                        Variant="Variant.Filled"
+                        Color="Color.Tertiary">
+                        Delete
+                    </MudButton>
+                    <MudButton
+                        OnClick="Update"
+                        StartIcon="@Icons.Material.Filled.Check"
+                        ButtonType="ButtonType.Submit"
+                        Variant="Variant.Filled"
+                        Color="Color.Tertiary"
+                        Class="ml-auto">
+                        Update
+                    </MudButton>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+}
+
+@code {
+
+    [Parameter]
+    public string? MachineId { get; set; }
+
+    private bool _initiallyLoaded;
+
+    private IEnumerable<DomainDictionary> _domains = Array.Empty<DomainDictionary>();
+    private IEnumerable<RoleDictionary> _roles = Array.Empty<RoleDictionary>();
+    private IEnumerable<PermissionDictionary> _permissions = Array.Empty<PermissionDictionary>();
+
+    private MachineDictionary _machine = new();
+    private Dictionary<string, object?> _machineMetaData = new();
+    private IEnumerable<RoleDictionary> _machineRoles = Array.Empty<RoleDictionary>();
+    private IEnumerable<DomainDictionary> _machineDomains = Array.Empty<DomainDictionary>();
+    private IEnumerable<PermissionDictionary> _machinePermissions = Array.Empty<PermissionDictionary>();
+
+
+    protected override void OnInitialized()
+    {
+        _machine = MachineDataSource.EntityFindById(MachineId);
+        _machineMetaData = MachineDataSource.EntityMetaData(MachineId);
+
+        LoadMachineRolesAndPermissions();
+
+        if (Options.Clouded.Auth.Identity.Role != null)
+            _roles = RoleDataSource.Entities();
+
+        if (Options.Clouded.Auth.Identity.Permission != null)
+            _permissions = PermissionDataSource.Entities();
+
+        _domains = DomainDataSource.Entities();
+
+        _initiallyLoaded = true;
+    }
+
+    private void LoadMachineRolesAndPermissions()
+    {
+        if (Options.Clouded.Auth.Identity.Role != null)
+            _machineRoles = MachineDataSource.MachineRoles(MachineId);
+
+        if (Options.Clouded.Auth.Identity.Permission != null)
+            _machinePermissions = MachineDataSource.MachinePermissions(MachineId);
+
+        _machineDomains = MachineDataSource.MachineDomains(MachineId);
+    }
+
+    private void Update()
+    {
+    // Domains
+        var machinePreviousDomains = MachineDataSource
+            .MachineDomains(MachineId)
+            .ToArray();
+
+        var machineDomainIdsToBeRemoved = machinePreviousDomains
+            .Where
+            (
+                previousDomain =>
+                    _machineDomains.All
+                        (
+                            role => !role.Id!.Equals(previousDomain.Id)
+                        )
+            )
+            .Select
+            (
+                domain => domain.Id
+            )
+            .ToArray();
+
+        if (machineDomainIdsToBeRemoved.Any())
+        {
+            MachineDataSource.MachineDomainsRemove
+                (
+                    MachineId,
+                    machineDomainIdsToBeRemoved
+                );
+        }
+
+        var machineDomainIdsToBeAdded = _machineDomains
+            .Where
+            (
+                domain =>
+                    machinePreviousDomains.All
+                        (
+                            previousDomain => !previousDomain.Id.Equals(domain.Id)
+                        )
+            )
+            .Select
+            (
+                domain => domain.Id
+            )
+            .ToArray();
+
+        if (machineDomainIdsToBeAdded.Any())
+        {
+            MachineDataSource.MachineDomainsAdd
+                (
+                    MachineId,
+                    machineDomainIdsToBeAdded
+                );
+        }
+
+    // Roles
+        if (Options.Clouded.Auth.Identity.Role != null)
+        {
+            var machinePreviousRoles = MachineDataSource
+                .MachineRoles(MachineId)
+                .ToArray();
+
+            var machineRoleIdsToBeRemoved = machinePreviousRoles
+                .Where
+                (
+                    previousRole =>
+                        _machineRoles.All
+                            (
+                                role => !role.Id!.Equals(previousRole.Id)
+                            )
+                )
+                .Select
+                (
+                    role => role.Id
+                )
+                .ToArray();
+
+            if (machineRoleIdsToBeRemoved.Any())
+            {
+                MachineDataSource.MachineRolesRemove
+                    (
+                        MachineId,
+                        machineRoleIdsToBeRemoved
+                    );
+            }
+
+            var machineRoleIdsToBeAdded = _machineRoles
+                .Where
+                (
+                    role =>
+                        machinePreviousRoles.All
+                            (
+                                previousRole => !previousRole.Id.Equals(role.Id)
+                            )
+                )
+                .Select
+                (
+                    role => role.Id
+                )
+                .ToArray();
+
+            if (machineRoleIdsToBeAdded.Any())
+            {
+                MachineDataSource.MachineRolesAdd
+                    (
+                        MachineId,
+                        machineRoleIdsToBeAdded
+                    );
+            }
+        }
+
+    // Permissions
+        if (Options.Clouded.Auth.Identity.Permission != null)
+        {
+            var machinePreviousPermissions = MachineDataSource
+                .MachinePermissions(MachineId)
+                .ToArray();
+
+            var machinePermissionIdsToBeRemoved = machinePreviousPermissions
+                .Where
+                (
+                    previousPermission =>
+                        _machinePermissions.All
+                            (
+                                permission => !permission.Id.Equals(previousPermission.Id)
+                            )
+                )
+                .Select
+                (
+                    permission => permission.Id
+                )
+                .ToArray();
+
+            if (machinePermissionIdsToBeRemoved.Any())
+            {
+                MachineDataSource.MachinePermissionsRemove
+                    (
+                        MachineId,
+                        machinePermissionIdsToBeRemoved
+                    );
+            }
+
+            var machinePermissionIdsToBeAdded = _machinePermissions
+                .Where
+                (
+                    permission =>
+                        machinePreviousPermissions.All
+                            (
+                                previousPermission => !previousPermission.Id.Equals(permission.Id)
+                            )
+                )
+                .Select
+                (
+                    permission => permission.Id
+                )
+                .ToArray();
+
+            if (machinePermissionIdsToBeAdded.Any())
+            {
+                MachineDataSource.MachinePermissionsAdd
+                    (
+                        MachineId,
+                        machinePermissionIdsToBeAdded
+                    );
+            }
+        }
+
+        MachineDataSource.EntityMetaDataUpdate(MachineId, _machineMetaData);
+        MachineDataSource.EntityUpdate(MachineId, _machine);
+
+        Snackbar.Add("Updated", Severity.Success);
+    }
+
+    private void Delete()
+    {
+        MachineDataSource.EntityDelete(MachineId);
+
+        Snackbar.Add("Deleted", Severity.Success);
+        NavigationManager.NavigateTo("/management/machines");
+    }
+
+    async Task CopyToClipboard(object? value)
+    {
+        if (value == null)
+            return;
+
+        try
+        {
+            await Clipboard.SetTextAsync(value.ToString() ?? string.Empty);
+            Snackbar.Add("Copied to clipboard", Severity.Info);
+        }
+        catch
+        {
+            Console.WriteLine("Cannot write text to clipboard");
+        }
+    }
+
+}

@@ -1,0 +1,84 @@
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+
+<MudGrid Spacing="2">
+    @foreach (var user in Users)
+    {
+        <MudItem xs="5">
+            <MudTextField
+                T="string"
+                ReadOnly="@Readonly"
+                @bind-Value="user.Identity"
+                For="@(() => user.Identity)"
+                Label="Identity"
+                UserAttributes=@InputAttributes
+                Variant="Variant.Outlined"/>
+        </MudItem>
+        <MudItem xs="5">
+            <PasswordField
+                @bind-Value="user.Password"
+                For="@(() => user.Password)"
+                ReadOnly="@Readonly"
+                Label="Password"
+                Variant="Variant.Outlined"
+                Adornment="Adornment.End"/>
+        </MudItem>
+
+        @if (!Readonly)
+        {
+            <MudItem xs="2" Style="display:flex;align-items: center">
+                <MudIconButton
+                    OnClick="@(() => RemoveUser(user))"
+                    Color="Color.Secondary"
+                    Icon="@Icons.Material.Filled.Remove"
+                    Variant="Variant.Filled"/>
+            </MudItem>
+        }
+    }
+    @if (!Readonly)
+    {
+        <MudItem xs="12">
+            <MudButton
+                OnClick="@AddNewUser"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Add"
+                Variant="Variant.Filled">
+                Add
+            </MudButton>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+
+    [Parameter] public bool Readonly { get; set; } = true;
+
+    [Parameter] public IEnumerable<AdminProviderUserAccessInput> Users { get; set; } = null!;
+
+    [Parameter] public EventCallback<IEnumerable<AdminProviderUserAccessInput>> UsersChanged { get; set; }
+
+    private Dictionary<string, object> InputAttributes { get; set; } = new()
+    {
+        { "autocomplete", "new-field-" + Guid.NewGuid() },
+    };
+
+    protected override void OnInitialized()
+    {
+    }
+
+    private async void AddNewUser()
+    {
+        var list = Users.ToList();
+        list.Add(new AdminProviderUserAccessInput { });
+
+        await UsersChanged.InvokeAsync(list);
+    }
+
+    private async void RemoveUser(AdminProviderUserAccessInput group)
+    {
+        var list = Users.ToList();
+        list.Remove(group);
+
+        await UsersChanged.InvokeAsync(list);
+    }
+
+}

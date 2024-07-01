@@ -1,0 +1,137 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Shared
+@using Microsoft.EntityFrameworkCore
+@inherits CancellableComponentBase
+@inject IDbContextResolver DbContextResolver
+@inject NavigationManager NavigationManager
+@inject IAuthProviderService AuthProviderService
+@inject IAdminProviderService AdminProviderService
+@inject IFunctionProviderService FunctionProviderService
+@inject IDataSourceService DataSourceService
+@page "/projects/{ProjectId}"
+
+<PageTitle>@Project.Name</PageTitle>
+
+<MudText Class="pb-8" Typo="Typo.h2">Dashboard</MudText>
+<MudGrid>
+    <MudItem lg="3" xs="12" md="4" sm="6">
+        <Tile onclick="@OnClick" Icon="@Icons.Material.Filled.Dns" Title="Datasources">
+            <Content>
+                <div class="d-flex flex-column gap-2 pa-2">
+                    @foreach (var dataSource in _dataSources)
+                    {
+                        <div class="d-flex justify-space-between">
+                            <MudText >@dataSource.Key</MudText>
+                            <MudText >@dataSource.Count()</MudText>
+                        </div>
+                    }
+                </div>
+            </Content>
+        </Tile>
+    </MudItem>
+    <MudItem lg="3" xs="12" md="4" sm="6">
+        <Tile onclick="@OnAuthClick" Icon="@Icons.Material.Filled.Security" Title="Auth providers">
+            <Content>
+                <div class="d-flex flex-column gap-2 pa-2">
+                    @foreach (var authProviderEntity in _auths)
+                    {
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">@authProviderEntity.Name</MudText>
+                            <ProviderStatus Status="@authProviderEntity.Status"/>
+                        </div>
+                    }
+                </div>
+            </Content>
+        </Tile>
+    </MudItem>
+    <MudItem lg="3" xs="12" md="4" sm="6">
+        <Tile onclick="@OnAdminClick" Icon="@Icons.Material.Filled.AdminPanelSettings" Title="Admin providers">
+            <Content>
+                <div class="d-flex flex-column gap-2 pa-2">
+                    @foreach (var adminProviderEntity in _admins)
+                    {
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">@adminProviderEntity.Name</MudText>
+                            <ProviderStatus Status="@adminProviderEntity.Status"/>
+                        </div>
+                    }
+                </div>
+            </Content>
+        </Tile>
+    </MudItem>
+    <MudItem lg="3" xs="12" md="4" sm="6">
+        <Tile onclick="@OnFunctionClick" Icon="@Icons.Material.Filled.DataObject" Title="Function providers">
+            <Content>
+                <div class="d-flex flex-column gap-2 pa-2">
+                    @foreach (var functionProviderEntity in _functions)
+                    {
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">@functionProviderEntity.Name</MudText>
+                            <MudChip Size="Size.Small" Text="@functionProviderEntity.Configuration.RepositoryType.GetEnumName()"/>
+                        </div>
+                    }
+                </div>
+            </Content>
+        </Tile>
+    </MudItem>
+</MudGrid>
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private CloudedDbContext _dbContext = null!;
+    private List<IGrouping<DatabaseType, DataSourceEntity>> _dataSources = new();
+    private List<AdminProviderEntity> _admins = new();
+    private List<FunctionProviderEntity> _functions = new();
+    private List<AuthProviderEntity> _auths = new();
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+        _dataSources = await _dbContext
+            .GetAll<DataSourceEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .GroupBy(x => x.Configuration.Type)
+            .ToListAsync(CancellationToken);
+        _admins = await _dbContext
+            .GetAll<AdminProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .ToListAsync(CancellationToken);
+        _auths = await _dbContext
+            .GetAll<AuthProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .ToListAsync(CancellationToken);
+        _functions = await _dbContext
+            .GetAll<FunctionProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .ToListAsync(CancellationToken);
+    }
+
+    private void OnClick()
+    {
+        NavigationManager.NavigateTo(DataSourceService.GetListRoute(ProjectId));
+    }
+
+    private void OnAuthClick()
+    {
+        NavigationManager.NavigateTo(AuthProviderService.GetListRoute(ProjectId));
+    }
+
+    private void OnAdminClick()
+    {
+        NavigationManager.NavigateTo(AdminProviderService.GetListRoute(ProjectId));
+    }
+
+    private void OnFunctionClick()
+    {
+        NavigationManager.NavigateTo(FunctionProviderService.GetListRoute(ProjectId));
+    }
+}

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PublishSingleFile>true</PublishSingleFile>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="8.0.1" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.1" />
+    <PackageReference Include="Blazored.FluentValidation" Version="2.1.0" />
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="Flurl.Http" Version="4.0.2" />
+    <PackageReference Include="Flurl.Serialization.TextJson" Version="3.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
+    <PackageReference Include="Mime-Detective" Version="23.10.1" />
+    <PackageReference Include="Mime-Detective.Definitions.Exhaustive" Version="23.10.1" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+    <PackageReference Include="MudBlazor" Version="6.19.1" />
+    <PackageReference Include="Serilog.Expressions" Version="4.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="TextCopy" Version="6.2.1" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Clouded.Results\Clouded.Results.csproj" />
+    <ProjectReference Include="..\..\Core\Clouded.Core.License\Clouded.Core.License.csproj" />
+    <ProjectReference Include="..\..\Core\DataSource\Clouded.Core.DataSource.Api\Clouded.Core.DataSource.Api.csproj" />
+    <ProjectReference Include="..\..\Core\DataSource\Clouded.Core.DataSource.Shared\Clouded.Core.DataSource.Shared.csproj" />
+    <ProjectReference Include="..\..\Core\Mail\Clouded.Core.Mail.Library\Clouded.Core.Mail.Library.csproj" />
+    <ProjectReference Include="..\..\Function\Clouded.Function.Library\Clouded.Function.Library.csproj" />
+    <ProjectReference Include="..\..\Function\Clouded.Function.Shared\Clouded.Function.Shared.csproj" />
+    <ProjectReference Include="..\Clouded.Auth.Shared\Clouded.Auth.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,263 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.Models.Dtos.Hub
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Models.Enums
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/authentications"
+@inject IDbContextResolver DbContextResolver
+@inject IAuthProviderService AuthProviderService
+@inject IDataSourceService DataSourceService
+@inject IDialogService DialogService
+@inject ISnackbar SnackbarService
+@inject ISnackbar Snackbar
+@inject ApplicationOptions ApplicationOptions
+@inject IStorageService StorageService
+@inject IJSRuntime Js
+
+<PageTitle>@Project.Name | Authentications</PageTitle>
+
+<div class="d-flex justify-space-between align-baseline">
+    <MudText Class="pb-8" Typo="Typo.h2">Authentication Providers</MudText>
+    <MudButton
+        Href="@($"/projects/{ProjectId}/authentications/create")"
+        StartIcon="@Icons.Material.Filled.Add"
+        Variant="Variant.Filled"
+        Color="Color.Tertiary">
+        Add authentication
+    </MudButton>
+</div>
+<MudGrid>
+    @foreach (var entity in _providerEntities)
+    {
+        <MudItem xs="6">
+            <Tile Icon="@Icons.Material.Filled.Security" Title="@entity.Name">
+                <TitleAction>
+                    <MudChip Class="mud-secondary">
+                        <MudText Typo="Typo.body2" Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">
+                            @entity.Code
+                        </MudText>
+                    </MudChip>
+                </TitleAction>
+                <Content>
+                    <div class="d-flex flex-column gap-4 pa-2">
+                        <MudGrid Spacing="2">
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Name:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @entity.Name
+                                </MudText>
+                            </MudItem>
+
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Status:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <ProviderStatus Status="entity.Status"/>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <MudText Typo="Typo.body2">
+                                    Last deploy:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudText Typo="Typo.body2">
+                                    @((object)entity.DeployedAt?.ToString("g") ?? '-')
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="4" Style="display: flex">
+                                <MudText Typo="Typo.body2">
+                                    Datasources:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudStack Row="@false">
+                                    <MudStack Row="@true" AlignItems="AlignItems.Center">
+                                        <MudText Typo="Typo.body2">
+                                            @entity.DataSource.Name
+                                        </MudText>
+
+                                        <MudIconButton
+                                            Icon="@Icons.Material.Filled.KeyboardArrowRight"
+                                            Color="Color.Secondary"
+                                            Size="Size.Small"
+                                            Variant="Variant.Filled"
+                                            HtmlTag="a"
+                                            Href="@DataSourceService.GetDetailRoute(ProjectId, entity.DataSource.Id)"/>
+                                    </MudStack>
+                                </MudStack>
+                            </MudItem>
+                            <MudItem xs="4" Style="display: flex">
+                                <MudText Typo="Typo.body2">
+                                    Features:
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="8">
+                                <MudStack Row="@true" AlignItems="AlignItems.Center">
+
+                                    @if (entity.Configuration.SocialConfiguration.Any(i => i.Type == ESocialAuthType.Google))
+                                    {
+                                        <MudTooltip Arrow="true" Text="Google login">
+                                            <MudIcon Icon="@Icons.Custom.Brands.Google"/>
+                                        </MudTooltip>
+                                    }
+
+                                    @if (entity.Configuration.SocialConfiguration.Any(i => i.Type == ESocialAuthType.Facebook))
+                                    {
+                                        <MudTooltip Arrow="true" Text="Facebook login">
+                                            <MudIcon Icon="@Icons.Custom.Brands.Facebook"/>
+                                        </MudTooltip>
+                                    }
+
+                                    @if (entity.Configuration.SocialConfiguration.Any(i => i.Type == ESocialAuthType.Apple))
+                                    {
+                                        <MudTooltip Arrow="true" Text="Apple login">
+                                            <MudIcon Icon="@Icons.Custom.Brands.Apple"/>
+                                        </MudTooltip>
+                                    }
+
+                                    @if (entity.Configuration.IdentityOrganization != null)
+                                    {
+                                        <MudTooltip Arrow="true" Text="Organizations">
+                                            <MudIcon Icon="@Icons.Material.Filled.GroupWork"/>
+                                        </MudTooltip>
+                                    }
+
+                                    @if (entity.Configuration.IdentityPermission != null)
+                                    {
+                                        <MudTooltip Arrow="true" Text="Permissions">
+                                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings"/>
+                                        </MudTooltip>
+                                    }
+
+                                    @if (entity.Configuration.Management)
+                                    {
+                                        <MudTooltip Arrow="true" Text="Admin panel">
+                                            <MudIcon Icon="@Icons.Material.Filled.ManageAccounts"/>
+                                        </MudTooltip>
+                                    }
+
+                                    @if (entity.Configuration.Documentation)
+                                    {
+                                        <MudTooltip Arrow="true" Text="API documentation">
+                                            <MudIcon Icon="@Icons.Material.Filled.MenuBook"/>
+                                        </MudTooltip>
+                                    }
+                                </MudStack>
+                            </MudItem>
+                        </MudGrid>
+                    </div>
+                </Content>
+                <Actions>
+                    <AuthDeployButtons Entity="@entity" ProviderHub="@_providerHub"/>
+                    <AuthStatusButton Entity="@entity" ProviderHub="@_providerHub"/>
+
+                    <MudTooltip Arrow="true" Text="Delete">
+                        <MudIconButton
+                            Class="ml-auto"
+                            Icon="@Icons.Material.Filled.Delete"
+                            Color="Color.Secondary"
+                            Size="Size.Medium"
+                            Variant="Variant.Filled"
+                            OnClick="@(() => HandleRemoveClick(entity))"/>
+                    </MudTooltip>
+                    <MudButton
+                        Class="ml-auto"
+                        Variant="Variant.Filled"
+                        Color="Color.Tertiary"
+                        HtmlTag="a"
+                        Href="@(AuthProviderService.GetDetailRoute(ProjectId, entity.Id))"
+                        EndIcon="@Icons.Material.Filled.ChevronRight">
+                        Show detail
+                    </MudButton>
+                </Actions>
+            </Tile>
+        </MudItem>
+    }
+</MudGrid>
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private CloudedDbContext _dbContext = null!;
+    private List<AuthProviderEntity> _providerEntities = new();
+    private HubConnection? _providerHub;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+
+        _providerEntities = await _dbContext
+            .GetAll<AuthProviderEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .OrderBy(x => x.Name)
+            .ToListAsync(CancellationToken);
+
+        _providerHub = AuthProviderService.GetProviderHub(StorageService);
+
+        _providerHub.On<HubProviderProcessingOutput>
+            (
+                nameof(HubProviderProcessingOutput),
+                output =>
+                {
+                    if (!output.Success)
+                    {
+                        Snackbar.Add(output.ErrorMessage, Severity.Error);
+                        return;
+                    }
+
+                    var provider = _providerEntities.Find(i => i.Id == output.Id);
+                    if (provider != null && output.DeployedAt != null)
+                    {
+                        provider.DeployedAt = output.DeployedAt;
+                    }
+
+                    Snackbar.Add(output.SuccessMessage, Severity.Success);
+
+                    InvokeAsync(StateHasChanged);
+                }
+            );
+
+        _providerHub.On<HubProviderUpdateStatus>
+            (
+                nameof(HubProviderUpdateStatus),
+                output =>
+                {
+                    var provider = _providerEntities.Find(i => i.Id == output.Id);
+
+                    if (provider != null && output.DeployAt != null && DateTime.Compare((DateTime)provider.DeployedAt, (DateTime)output.DeployAt) == 0)
+                    {
+                        provider.Status = output.Status;
+
+                        InvokeAsync(StateHasChanged);
+                    }
+                }
+            );
+
+        await _providerHub.StartAsync();
+    }
+
+    private async Task HandleRemoveClick(AuthProviderEntity entity)
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await AuthProviderService.DeleteAsync(entity, _providerHub!, SnackbarService, cancellationToken: CancellationToken);
+            _providerEntities.RemoveAll(x => x.Id == entity.Id);
+            SnackbarService.Add("Deleted", Severity.Success);
+        }
+    }
+}

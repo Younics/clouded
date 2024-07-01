@@ -1,0 +1,102 @@
+<div class="@HoverClass">
+    <MudPaper onclick="@OnClick" Class="pa-2">
+        <div Class="mud-background rounded pl-4 pr-1 py-1 mb-2 d-flex align-center gap-4">
+            <MudIcon Icon="@Icon"/>
+            <MudText Class="flex-1" Typo="Typo.h6" Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">
+                @Title
+            </MudText>
+            @if (HelperText != null)
+            {
+                <MudTooltip Text="@HelperText">
+                    <MudIcon Icon="@Icons.Material.Filled.Help"></MudIcon>
+                </MudTooltip>
+            }
+            @TitleAction
+
+            @if (Switchable)
+            {
+                <MudSwitch
+                    T="bool"
+                    Color="Color.Primary"
+                    Checked="Enabled"
+                    CheckedChanged="EnabledChanged"
+                    Label=""
+                    ReadOnly="@Readonly"/>
+            }
+
+            @if (Collapsable && !Switchable)
+            {
+                <MudIconButton
+                    Class="px-2"
+                    OnClick="@(() => Collapsed = !Collapsed)"
+                    ButtonType="ButtonType.Button"
+                    Variant="Variant.Filled"
+                    Icon="@(Collapsed ? Icons.Material.Filled.ArrowDropDown : Icons.Material.Filled.ArrowDropUp)"
+                    Title="@(Collapsed ? "Open" : "Close")"
+                    Color="Color.Tertiary"/>
+            }
+        </div>
+        <div class="pa-2">
+            @if ((!Collapsable && !Switchable) || (Collapsable && !Collapsed) || (Switchable && Enabled))
+            {
+                <div style="height:@Height;">
+                    @Content
+                </div>
+
+                @if (Actions != null)
+                {
+                    <div class="d-flex gap-4 pt-6 justify-end">
+                        @Actions
+                    </div>
+                }
+            }
+        </div>
+    </MudPaper>
+</div>
+
+@code {
+
+    [Parameter]
+    public string? Icon { get; set; }
+
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = "";
+
+    [Parameter]
+    public string? HelperText { get; set; }
+
+    [Parameter]
+    public RenderFragment? TitleAction { get; set; }
+
+    [Parameter]
+    public RenderFragment? Content { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public Action? OnClick { get; set; }
+
+    [Parameter]
+    public bool Collapsable { get; set; }
+
+    [Parameter]
+    public bool Collapsed { get; set; } = true;
+
+    [Parameter]
+    public bool Switchable { get; set; }
+
+    [Parameter]
+    public bool Enabled { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> EnabledChanged { get; set; }
+
+    [Parameter]
+    public bool Readonly { get; set; }
+
+    [Parameter]
+    public string Height { get; set; } = "auto";
+
+    string HoverClass => OnClick != null ? "hover " : "";
+}

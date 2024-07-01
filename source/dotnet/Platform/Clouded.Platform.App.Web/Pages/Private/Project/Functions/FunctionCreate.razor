@@ -1,0 +1,46 @@
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/functions/create"
+@inject IFunctionProviderService FunctionProviderService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager;
+
+<PageTitle>@Project.Name | Function provider Create</PageTitle>
+
+<FunctionForm Readonly="@false" Title="Create new Function provider" Model="@_input" ProjectId="@ProjectId" OnValidSubmit="OnValidSubmit"/>
+
+@code {
+
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private readonly FunctionProviderInput _input = new();
+    private FunctionProviderEntity? _functionProviderEntity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _input.ProjectId = Project.Id;
+        _input.CodePrefix = $"{Project.Code}-function-";
+    }
+
+    private async Task OnValidSubmit()
+    {
+        _functionProviderEntity = await FunctionProviderService.CreateAsync(_input, cancellationToken: CancellationToken);
+
+        if (_functionProviderEntity == null)
+        {
+            Snackbar.Add("There was an error creating Function provider", Severity.Error);
+        }
+        else
+        {
+            Snackbar.Add("Function provider created", Severity.Success);
+            Snackbar.Add("Please finish configuration in following form", Severity.Success);
+            NavigationManager.NavigateTo(FunctionProviderService.GetEditRoute(ProjectId, _functionProviderEntity.Id));
+        }
+    }
+
+}

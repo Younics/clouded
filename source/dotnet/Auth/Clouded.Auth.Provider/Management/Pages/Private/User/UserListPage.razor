@@ -1,0 +1,176 @@
+@page "/management/users"
+@using Clouded.Core.DataSource.Shared.Extensions
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.Dictionaries
+@using Clouded.Auth.Provider.Options
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Shared
+@using Clouded.Shared.Enums
+@inject ApplicationOptions Options 
+@inject NavigationManager NavigationManager
+@inject IUserDataSource UserDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudText Typo="Typo.h2">Users</MudText>
+    <div Class="d-flex justify-end pb-6">
+        <MudButton
+            StartIcon="@Icons.Material.Filled.Add"
+            OnClick="Create"
+            ButtonType="ButtonType.Submit"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary">
+            Create new user
+        </MudButton>
+    </div>
+
+    <MudTable
+        @ref="_tableReference"
+        T="UserDictionary"
+        ServerData="@(new Func<TableState, Task<TableData<UserDictionary>>>(LoadData))"
+        OnRowClick="RowClick"
+        Class="py-1 px-2"
+        Hover="true">
+        <ToolBarContent>
+            <MudGrid
+                Spacing="1"
+                Justify="Justify.SpaceBetween"
+                Class="flex-1 align-center rounded mud-background"
+                style="margin: 0 -8px 0 -16px">
+                <MudItem Class="d-flex align-center ml-2">
+                    <MudIcon Icon="@Icons.Material.Outlined.TableChart"/>
+                    <MudText Class="px-4" Typo="Typo.h6">Records</MudText>
+                </MudItem>
+                <MudItem xs="6">
+                    <MudStack Row="@true" AlignItems="AlignItems.Center" Class="ml-auto">
+                        <MudTextField
+                            T="string"
+                            Margin="Margin.Dense"
+                            Variant="Variant.Outlined"
+                            Placeholder="Search"
+                            Adornment="Adornment.Start"
+                            AdornmentIcon="@Icons.Material.Filled.Search"
+                            IconSize="Size.Medium"
+                            Class="mt-0 mr-2"
+                            Immediate="true"
+                            ValueChanged="@OnSearch"/>
+
+                        <ListFilter Value="_filterValues" ValueChanged="OnValueChange" Columns="@_filterableColumns"/>
+                    </MudStack>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            @foreach (var column in _userColumns)
+            {
+                <MudTh>
+                    <MudTableSortLabel
+                        T="UserDictionary"
+                        SortLabel="@column.Name">
+                        @column.Name.ToReadCase()
+                    </MudTableSortLabel>
+                </MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate>
+            @foreach (var column in _userColumns)
+            {
+                if (column.Type == EColumnType.Bytea)
+                {
+                    <MudTd DataLabel="@column.Name">
+                        @if (context[column.Name] == null)
+                        {
+                            <span>-</span>
+                        }
+                        else
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.FileCopy"/>
+                        }
+                    </MudTd>
+                }
+                else
+                {
+                    <MudTd DataLabel="@column.Name">@context[column.Name]</MudTd>
+                }
+            }
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager/>
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private IEnumerable<ColumnResult> _userColumns = null!;
+    private bool _initiallyLoaded;
+
+    private MudTable<UserDictionary>? _tableReference;
+    private string? _tableSearch;
+    private IEnumerable<ColumnResult> _filterableColumns = new List<ColumnResult>();
+    private Dictionary<string, object?> _filterValues = new();
+
+    protected override void OnInitialized()
+    {
+        _userColumns = UserDataSource
+            .GetEntityColumns()
+            .Where
+            (
+                column =>
+                    column.Name != Options.Clouded.Auth.Identity.User.ColumnPassword
+            );
+
+        _filterableColumns = _userColumns.OnlyFilterableFields();
+        foreach (var filterableColumn in _filterableColumns)
+        {
+            _filterValues[filterableColumn.GetKey()] = null;
+        }
+        _initiallyLoaded = true;
+    }
+
+    private void Create()
+    {
+        NavigationManager.NavigateTo("/management/users/create");
+    }
+
+    private Task<TableData<UserDictionary>> LoadData(TableState state)
+    {
+        var data = UserDataSource
+            .UsersPaginated
+            (
+                state.Page,
+                state.PageSize,
+                _tableSearch,
+                filter: (_filterableColumns, _filterValues),
+                orderByColumn: state.SortLabel,
+                orderByDescending: state.SortDirection == SortDirection.Descending
+            );
+
+        return Task.FromResult
+            (
+                new TableData<UserDictionary>
+                {
+                    TotalItems = (int)data.PageInfo.TotalElements,
+                    Items = data.Items
+                }
+            );
+    }
+
+    private void OnSearch(string? text)
+    {
+        _tableSearch = text?.Length < 3 ? null : text;
+        _tableReference?.ReloadServerData();
+    }
+
+    private void RowClick(TableRowClickEventArgs<UserDictionary> args)
+    {
+        NavigationManager.NavigateTo($"/management/users/{args.Item.Id}");
+    }
+
+    private void OnValueChange(Dictionary<string, object?> value)
+    {
+        _filterValues = value;
+        _tableReference?.ReloadServerData();
+    }
+
+}
+

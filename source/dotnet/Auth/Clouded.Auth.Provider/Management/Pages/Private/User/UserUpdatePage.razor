@@ -1,0 +1,356 @@
+@page "/management/users/{UserId}"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IUserDataSource UserDataSource
+@inject IRoleDataSource RoleDataSource
+@inject IPermissionDataSource PermissionDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Update user</MudText>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-2">
+                <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">User attributes</MudText>
+                <GenericFields
+                    TDictionary="UserDictionary"
+                    Columns="_userColumns"
+                    IdColumnName="@Options.Clouded.Auth.Identity.User.ColumnId"
+                    PasswordColumnName="@Options.Clouded.Auth.Identity.User.ColumnPassword"
+                    @bind-Data="_user"/>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudStack Row="@false" Spacing="4">
+                <MetaDataManager
+                    @bind-MetaData="_userMetaData"/>
+                <UserSupportDataManager
+                    @bind-Data="_userSupportData"/>
+            </MudStack>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudPaper Class="pa-2">
+                <MudGrid Justify="Justify.SpaceBetween" Spacing="0" Class="align-center mud-background rounded pa-2 pl-4 mb-2">
+                    <MudItem xs="7">
+                        <MudText Typo="Typo.h6">Roles and permissions</MudText>
+                    </MudItem>
+                    <MudItem xs="5">
+                        @if (Options.Clouded.Auth.Identity.Organization != null)
+                        {
+                            @if (_organizations.Any())
+                            {
+                                <OrganizationPicker
+                                    Organizations="@_organizations"
+                                    @bind-SelectedOrganization="CurrentOrganization"/>
+                            }
+                        }
+                    </MudItem>
+                </MudGrid>
+
+                @if (Options.Clouded.Auth.Identity.Organization == null || CurrentOrganization != null)
+                {
+                    <MudGrid
+                        Justify="Justify.SpaceBetween"
+                        Spacing="2">
+                        <MudItem xs="6">
+                            @if (Options.Clouded.Auth.Identity.Role != null)
+                            {
+                                <RoleManager
+                                    IdKey="@Options.Clouded.Auth.Identity.Role!.ColumnId"
+                                    IdentityKey="@Options.Clouded.Auth.Identity.Role!.ColumnIdentity"
+                                    Roles="@_roles"
+                                    @bind-SelectedRoles="_userRoles"/>
+                            }
+                        </MudItem>
+                        <MudItem xs="6">
+                            @if (Options.Clouded.Auth.Identity.Permission != null)
+                            {
+                                <PermissionManager
+                                    IdKey="@Options.Clouded.Auth.Identity.Permission!.ColumnId"
+                                    IdentityKey="@Options.Clouded.Auth.Identity.Permission!.ColumnIdentity"
+                                    Permissions="@_permissions"
+                                    @bind-SelectedPermissions="_userPermissions"/>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                }
+                else
+                {
+                    @if (Options.Clouded.Auth.Identity.Organization != null && !_organizations.Any())
+                    {
+                        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center pa-4">
+                            <MudIcon Class="pr-1" Color="Color.Warning" Icon="@Icons.Material.Filled.Warning"></MudIcon>
+                            Add user to organization, then you can assign roles and permissions
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center pa-4">
+                            <MudIcon Class="pr-1" Color="Color.Info" Icon="@Icons.Material.Filled.Info"></MudIcon>
+                            Please select an organization from picker
+                        </MudText>
+                    }
+                }
+            </MudPaper>
+        </MudItem>
+
+
+        <MudItem Class="d-flex justify-between" xs="12">
+            <MudButton
+                HtmlTag="a"
+                Href="/management/users"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <div class="ml-auto">
+                <MudButton
+                    OnClick="Delete"
+                    StartIcon="@Icons.Material.Filled.DeleteForever"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Delete
+                </MudButton>
+                <MudButton
+                    OnClick="Update"
+                    StartIcon="@Icons.Material.Filled.Check"
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary"
+                    Class="ml-auto">
+                    Update
+                </MudButton>
+            </div>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+
+    [Parameter]
+    public string? UserId { get; set; }
+
+    private bool _initiallyLoaded;
+
+    private IEnumerable<OrganizationDictionary> _organizations = Array.Empty<OrganizationDictionary>();
+    private IEnumerable<RoleDictionary> _roles = Array.Empty<RoleDictionary>();
+    private IEnumerable<PermissionDictionary> _permissions = Array.Empty<PermissionDictionary>();
+
+    private OrganizationDictionary? _selectedOrganization;
+
+    private OrganizationDictionary? CurrentOrganization
+    {
+        get => _selectedOrganization;
+        set
+        {
+            _selectedOrganization = value;
+            LoadUserRolesAndPermissions();
+        }
+    }
+
+    private object? CurrentOrganizationId =>
+        Options.Clouded.Auth.Identity.Organization != null
+            ? CurrentOrganization?.GetValueOrDefault(Options.Clouded.Auth.Identity.Organization!.ColumnId)
+            : null;
+
+    private IEnumerable<ColumnResult> _userColumns = null!;
+    private UserDictionary _user = new();
+    private DataSourceDictionary _userSupportData = new();
+    private Dictionary<string, object?> _userMetaData = new();
+    private IEnumerable<RoleDictionary> _userRoles = Array.Empty<RoleDictionary>();
+    private IEnumerable<PermissionDictionary> _userPermissions = Array.Empty<PermissionDictionary>();
+
+
+    protected override void OnInitialized()
+    {
+    // TODO: Not found handling
+        if (string.IsNullOrEmpty(UserId))
+            return;
+
+        _userColumns = UserDataSource.GetEntityColumns();
+        _user = UserDataSource.EntityFindById(UserId);
+        _user.Password = null;
+        _userSupportData = UserDataSource.EntitySupportData(UserId);
+        _userMetaData = UserDataSource.EntityMetaData(UserId);
+
+        if (Options.Clouded.Auth.Identity.Organization != null)
+            _organizations = UserDataSource.UserOrganizations(UserId);
+        else
+            LoadUserRolesAndPermissions();
+
+        if (Options.Clouded.Auth.Identity.Role != null)
+            _roles = RoleDataSource.Entities();
+
+        if (Options.Clouded.Auth.Identity.Permission != null)
+            _permissions = PermissionDataSource.Entities();
+
+        _initiallyLoaded = true;
+    }
+
+    private void LoadUserRolesAndPermissions()
+    {
+        if (Options.Clouded.Auth.Identity.Role != null)
+            _userRoles = UserDataSource.UserRoles
+                (
+                    UserId,
+                    CurrentOrganizationId
+                );
+
+        if (Options.Clouded.Auth.Identity.Permission != null)
+            _userPermissions = UserDataSource.UserPermissions
+                (
+                    UserId,
+                    CurrentOrganizationId
+                );
+    }
+
+    private void Update()
+    {
+    // If password is empty
+        if (_user.Password == null)
+            _user.Remove(Options.Clouded.Auth.Identity.User.ColumnPassword);
+
+    // Roles
+        if (Options.Clouded.Auth.Identity.Role != null && CurrentOrganizationId != null)
+        {
+            var userPreviousRoles = UserDataSource
+                .UserRoles(UserId, CurrentOrganizationId)
+                .ToArray();
+
+            var userRoleIdsToBeRemoved = userPreviousRoles
+                .Where
+                (
+                    previousRole =>
+                        _userRoles.All
+                            (
+                                role => !role.Id.Equals(previousRole.Id)
+                            )
+                )
+                .Select
+                (
+                    role => role.Id
+                )
+                .ToArray();
+
+            if (userRoleIdsToBeRemoved.Any())
+            {
+                UserDataSource.UserRolesRemove
+                    (
+                        UserId,
+                        userRoleIdsToBeRemoved,
+                        CurrentOrganizationId
+                    );
+            }
+
+            var userRoleIdsToBeAdded = _userRoles
+                .Where
+                (
+                    role =>
+                        userPreviousRoles.All
+                            (
+                                previousRole => !previousRole.Id.Equals(role.Id)
+                            )
+                )
+                .Select
+                (
+                    role => role.Id
+                )
+                .ToArray();
+
+            if (userRoleIdsToBeAdded.Any())
+            {
+                UserDataSource.UserRolesAdd
+                    (
+                        UserId,
+                        userRoleIdsToBeAdded,
+                        CurrentOrganizationId
+                    );
+            }
+        }
+
+    // Permissions
+        if (Options.Clouded.Auth.Identity.Permission != null && CurrentOrganizationId != null)
+        {
+            var userPreviousPermissions = UserDataSource
+                .UserPermissions(UserId, CurrentOrganizationId)
+                .ToArray();
+
+            var userPermissionIdsToBeRemoved = userPreviousPermissions
+                .Where
+                (
+                    previousPermission =>
+                        _userPermissions.All
+                            (
+                                permission => !permission.Id.Equals(previousPermission.Id)
+                            )
+                )
+                .Select
+                (
+                    permission => permission.Id
+                )
+                .ToArray();
+
+            if (userPermissionIdsToBeRemoved.Any())
+            {
+                UserDataSource.UserPermissionsRemove
+                    (
+                        UserId,
+                        userPermissionIdsToBeRemoved,
+                        CurrentOrganizationId
+                    );
+            }
+
+            var userPermissionIdsToBeAdded = _userPermissions
+                .Where
+                (
+                    permission =>
+                        userPreviousPermissions.All
+                            (
+                                previousPermission => !previousPermission.Id.Equals(permission.Id)
+                            )
+                )
+                .Select
+                (
+                    permission => permission.Id
+                )
+                .ToArray();
+
+            if (userPermissionIdsToBeAdded.Any())
+            {
+                UserDataSource.UserPermissionsAdd
+                    (
+                        UserId,
+                        userPermissionIdsToBeAdded,
+                        CurrentOrganizationId
+                    );
+            }
+        }
+
+        UserDataSource.EntityMetaDataUpdate(UserId, _userMetaData);
+        UserDataSource.EntityUpdate(UserId, _user, _userSupportData);
+
+        _user.Password = null;
+
+        Snackbar.Add("Updated", Severity.Success);
+    }
+
+    private void Delete()
+    {
+        UserDataSource.EntityDelete(UserId);
+
+        Snackbar.Add("Deleted", Severity.Success);
+        NavigationManager.NavigateTo("/management/users");
+    }
+
+}

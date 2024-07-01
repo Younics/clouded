@@ -1,0 +1,25 @@
+﻿<MudCustomThemeProvider/>
+<MudDialogProvider/>
+<MudSnackbarProvider/>
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <CascadingValue Name="RouteData" Value="@routeData">
+                <AuthorizeRouteView
+                    RouteData="@routeData"
+                    DefaultLayout="typeof(DefaultLayout)">
+                    <Authorizing>
+                        <MudProgressCircular/>
+                    </Authorizing>
+                    <NotAuthorized>
+                        <Redirect To="/login"/>
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+            </CascadingValue>
+        </Found>
+        <NotFound>
+            <Redirect To="/projects"/>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

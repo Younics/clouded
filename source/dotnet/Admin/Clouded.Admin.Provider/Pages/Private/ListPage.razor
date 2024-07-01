@@ -1,0 +1,698 @@
+@page "/management/{TableName}"
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Core.DataSource.Shared.Extensions
+@using Clouded.Core.DataSource.Shared.Input
+@using Clouded.Function.Framework.Contexts
+@using Clouded.Function.Framework.Contexts.Base
+@using Clouded.Function.Library.Services
+@using Clouded.Function.Shared
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Admin.Provider.Extensions
+@using Clouded.Admin.Provider.Contexts
+@using Clouded.Admin.Provider.DataSources.Interfaces
+@using Clouded.Core.DataSource.Shared.Enums
+@using Clouded.Shared.Enums
+@using Microsoft.Extensions.Primitives
+@attribute [Authorize]
+@inject ApplicationOptions ApplicationOptions
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IFunctionService FunctionService
+@inject IUserSettingsDataSource UserSettingsDataSource
+
+@if (_table != null)
+{
+    <div Class="d-flex pb-6">
+        <MudText Typo="Typo.h4">@(_table?.Name)</MudText>
+
+        <MudButton Class="ml-auto"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   ButtonType="ButtonType.Submit"
+                   Variant="Variant.Filled"
+                   Href="@($"/management/{TableName}/create")"
+                   HtmlTag="a"
+                   Color="Color.Tertiary">
+            Create new
+        </MudButton>
+    </div>
+
+    @if (_table != null && _columns != null)
+    {
+        <MudTable
+            Class="py-1 px-2"
+            T="DataSourceDictionary"
+            @ref="_tableReference"
+            @bind-SelectedItems="_selectedItems"
+            ServerData="@(new Func<TableState, Task<TableData<DataSourceDictionary>>>(LoadData))"
+            OnRowClick="RowClick"
+            MultiSelection="@true"
+            SelectOnRowClick="@false"
+            FixedHeader="@true"
+            Hover="@true"
+            Bordered="@true"
+            Virtualize="@true"
+            Striped="@true">
+
+            <ToolBarContent>
+                <MudGrid
+                    Spacing="1"
+                    Justify="Justify.SpaceBetween"
+                    Class="flex-1 align-center rounded mud-background"
+                    style="margin: 0 -8px 0 -16px">
+                    <MudItem Class="d-flex align-center ml-2">
+                        <MudIcon Icon="@Icons.Material.Outlined.TableChart"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudStack Row="@true" AlignItems="AlignItems.Center" Class="ml-auto">
+                            <MudTextField
+                                T="string"
+                                ValueChanged="@(OnSearch)"
+                                Margin="Margin.Dense"
+                                Variant="Variant.Outlined"
+                                Placeholder="Search"
+                                Adornment="Adornment.Start"
+                                AdornmentIcon="@Icons.Material.Filled.Search"
+                                IconSize="Size.Medium"
+                                Class="mt-0 mr-2">
+                            </MudTextField>
+                            @if (_selectedItems.Any())
+                            {
+                                @* <MudMenu Label="Actions" Variant="Variant.Filled" Color="Color.Secondary"> *@
+                                @* todo connect functions *@
+                                // </MudMenu>
+                                <MudIconButton
+                                    OnClick="@OnDeleteAsync"
+                                    Color="Color.Secondary"
+                                    Variant="Variant.Filled"
+                                    Icon="@Icons.Material.Filled.Delete"/>
+                            }
+                            @if (_filterableColumns.Any() && _filterValues.Any() && _table.Columns.Any(i => i.Filterable))
+                            {
+                                <MudMenu Variant="Variant.Filled" Color="Color.Surface" DisableRipple="@true" Icon="@(!HasAnyFilter() ? Icons.Material.Outlined.FilterAlt : Icons.Material.Filled.FilterAlt)">
+                                    @foreach (var filterableColumn in _filterableColumns.Where(c => _viewConfigs[c.Name]))
+                                    {
+                                        var filterableColumnOptions = _table.Columns.First(x => x.Column == filterableColumn.Name);
+                                        @if (filterableColumnOptions.Filterable && filterableColumn.IsFilterable())
+                                        {
+                                            <MudMenuItem Class="filter-menu-item" AutoClose="@false">
+                                                @switch (filterableColumn.Type)
+                                                {
+                                                    case EColumnType.Boolean:
+                                                        <MudCheckBox
+                                                            T="bool?"
+                                                            TriState="@true"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Checked="@((bool?)_filterValues[filterableColumn.GetKey()])"
+                                                            CheckedChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                    case EColumnType.Varchar:
+                                                    case EColumnType.Text:
+                                                        <MudTextField
+                                                            T="string?"
+                                                            Variant="Variant.Outlined"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Value="@((string?)_filterValues[filterableColumn.GetKey()])"
+                                                            ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                    case EColumnType.SmallSerial:
+                                                        <MudNumericField
+                                                            T="short?"
+                                                            Variant="Variant.Outlined"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Step="1"
+                                                            Value="@((short?)_filterValues[filterableColumn.GetKey()])"
+                                                            ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                    case EColumnType.Serial:
+                                                    case EColumnType.Int:
+                                                        <MudNumericField
+                                                            T="int?"
+                                                            Variant="Variant.Outlined"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Step="1"
+                                                            Value="@((int?)_filterValues[filterableColumn.GetKey()])"
+                                                            ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                    case EColumnType.BigSerial:
+                                                    case EColumnType.Long:
+                                                        <MudNumericField
+                                                            T="long?"
+                                                            Variant="Variant.Outlined"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Step="1L"
+                                                            Value="@((long?)_filterValues[filterableColumn.GetKey()])"
+                                                            ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                    case EColumnType.Double:
+                                                        <MudNumericField
+                                                            T="float?"
+                                                            Variant="Variant.Outlined"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Step="0.1F"
+                                                            Value="@((float?)_filterValues[filterableColumn.GetKey()])"
+                                                            ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                    case EColumnType.Decimal:
+                                                        <MudNumericField
+                                                            T="decimal?"
+                                                            Variant="Variant.Outlined"
+                                                            Label="@filterableColumnOptions.Name"
+                                                            Step="0.1M"
+                                                            Value="@((decimal?)_filterValues[filterableColumn.GetKey()])"
+                                                            ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                                                        break;
+                                                }
+                                            </MudMenuItem>
+                                        }
+                                    }
+                                </MudMenu>
+                            }
+                            <MudMenu Variant="Variant.Filled" Color="Color.Surface" DisableRipple="@true" Icon="@Icons.Material.Filled.ViewColumn">
+                                @if (_visibleColumns.Any() && _table.Columns.Any())
+                                {
+                                    foreach (var column in _visibleColumns)
+                                    {
+                                        <MudMenuItem Class="filter-menu-item" AutoClose="@false">
+                                            <MudCheckBox
+                                                T="bool"
+                                                Label="@column.Name"
+                                                Checked="@(_viewConfigs[column.Column])"
+                                                CheckedChanged="@((val) => SetViewValue(column, val))"/>
+                                        </MudMenuItem>
+                                    }
+                                }
+                            </MudMenu>
+                            <MudIconButton
+                                OnClick="@RefreshTable"
+                                Color="Color.Tertiary"
+                                Variant="Variant.Filled"
+                                Icon="@Icons.Material.Filled.Refresh"/>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>&nbsp;</MudTh>
+                @foreach (var column in GetVisibleColumns())
+                {
+                    var relation = _insideRelations.FirstOrDefault(x => x.Column == column.Column);
+
+                    if (relation != null || !column.IsSortable())
+                    {
+                        <MudTh>@column.Name</MudTh>
+                    }
+                    else
+                    {
+                        <MudTh>
+                            <MudTableSortLabel SortLabel="@column.Column" T="DataSourceDictionary">@column.Name</MudTableSortLabel>
+                        </MudTh>
+                    }
+                }
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Actions">
+                    <MudStack Spacing="2" Row="@true">
+                        <MudIconButton @onclick:stopPropagation HtmlTag="a" Target="_blank" Href="@(context.ToEntityDetailUri(_columns, $"/management/{_table.Table}/detail"))" Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small"/>
+                        <MudIconButton @onclick:stopPropagation HtmlTag="a" Href="@(context.ToEntityDetailUri(_columns, $"/management/{_table.Table}/edit"))" Icon="@Icons.Material.Filled.Edit" Size="Size.Small"/>
+                        <MudIconButton OnClick="@(() => OnDeleteItemAsync(context))" Icon="@Icons.Material.Filled.Delete" Size="Size.Small"/>
+                    </MudStack>
+                </MudTd>
+                @foreach (var column in GetVisibleColumns())
+                {
+                    var relation = _insideRelations.FirstOrDefault(x => x.Column == column.Column);
+
+                    @if (relation != null)
+                    {
+                        <MudTd Style="max-width: calc(100vw / 3)" DataLabel="@column.Name">
+                            @if (context.GetColumnValue(column.Column) == null)
+                            {
+                                <span>-</span>
+                            }
+                            else
+                            {
+                                <ul>
+                                    @foreach (var relationData in _relationConfigs[relation].Select(name => context.GetColumnValue(relation.GetAlias() + "." + name)))
+                                    {
+                                        <li>
+                                            @if (relationData != null)
+                                            {
+                                                <MudText Style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden">@relationData</MudText>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </MudTd>
+                    }
+                    else if (column.Type == ETableColumnType.Virtual)
+                    {
+                        @if (column.VirtualType == EVirtualColumnType.Image)
+                        {
+                            @if (column.GetVirtualFieldValue(context) != null)
+                            {
+                                <MudTd DataLabel="@column.Name">
+                                    <MudImage onerror="this.replaceWith('-')" Style="height: 80px;" Src="@column.GetVirtualFieldValue(context)" Alt="@column.Name" Elevation="25" Class="rounded-lg" loading="lazy"/>
+                                </MudTd>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        }
+                        else if (column.VirtualType == EVirtualColumnType.String)
+                        {
+                            <MudTd DataLabel="@column.Name">
+                                @column.GetVirtualFieldValue(context)
+                            </MudTd>
+                        }
+                    }
+                    else if (column.Type == ETableColumnType.Image)
+                    {
+                        <MudTd DataLabel="@column.Name">
+                            @if (context.GetColumnValue(column.Column) != null)
+                            {
+                                <MudImage Style="height: 80px;" Src="@ColumnHelper.ToImageSrc(context.GetColumnValue(column.Column))" Alt="@column.Name" Elevation="25" Class="rounded-lg __load-image" loading="lazy"/>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd Style="max-width: calc(100vw / 3); text-overflow: ellipsis; white-space: nowrap; overflow: hidden" DataLabel="@column.Name">@(context.GetColumnValue(column.Column, "-"))</MudTd>
+                    }
+                }
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No matching records found</MudText>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText>Loading...</MudText>
+            </LoadingContent>
+            <PagerContent>
+                <MudTablePager/>
+            </PagerContent>
+        </MudTable>
+    }
+}
+
+@code
+{
+    [Parameter] public string? TableName { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    private MudTable<DataSourceDictionary>? _tableReference;
+
+    private List<DataSourceOptions>? _dataSources;
+    private List<TableOptions>? _tables;
+
+    private HashSet<DataSourceDictionary> _selectedItems = new();
+
+    private string? _searchString;
+    private DataSourceOptions? _dataSource;
+    private TableOptions? _table;
+    private IEnumerable<ColumnResult>? _columns;
+    private IEnumerable<RelationResult> _insideRelations = new List<RelationResult>();
+    private Dictionary<RelationResult, IEnumerable<string>> _relationConfigs = new();
+    private Dictionary<string, bool> _viewConfigs = new();
+    private AdminContext? _context;
+    private IEnumerable<TableColumnOptions> _visibleColumns = new List<TableColumnOptions>();
+    private IEnumerable<ColumnResult> _searchableColumns = new List<ColumnResult>();
+    private IEnumerable<ColumnResult> _filterableColumns = new List<ColumnResult>();
+    private readonly Dictionary<string, object?> _filterValues = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dataSources = ApplicationOptions.Clouded.DataSources.ToList();
+        _tables = ApplicationOptions.Clouded.Admin.Tables.ToList();
+
+        await ResolveTable();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_tableReference == null)
+            return;
+
+        // Remove previous data
+        _table = null;
+        _context = null;
+
+        await _tableReference.ReloadServerData();
+
+        // Setup a new table
+        await ResolveTable();
+
+        await _tableReference.ReloadServerData();
+    }
+
+    private void RowClick(TableRowClickEventArgs<DataSourceDictionary> args)
+    {
+        if (_table == null || _columns == null)
+            return;
+
+        NavigationManager.NavigateTo(args.Item.ToEntityDetailUri(_columns, $"/management/{_table.Table}/detail"));
+    }
+
+    private async Task ResolveTable()
+    {
+        if (_dataSources == null || _tables == null)
+            return;
+
+        if (TableName == null || _tables.All(x => x.Table != TableName))
+        {
+            NavigationManager.NavigateTo("/"); // TODO
+            return;
+        }
+
+        _table = _tables.First(x => x.Table == TableName);
+        _dataSource = _dataSources.First(x => x.Id == _table.DataSourceId);
+
+        _context = new AdminContext
+        (
+            new Connection
+            {
+                Type = _dataSource.Type,
+                Server = _dataSource.Server,
+                Port = _dataSource.Port,
+                Username = _dataSource.Username,
+                Password = _dataSource.Password,
+                Database = _dataSource.Database
+            },
+            Snackbar
+        );
+
+        _columns = _context.GetColumns(_table.Schema, _table.Table);
+        _visibleColumns = _table.Columns.OnlyVisibleForList().OrderBy(x => x.Order);
+        _searchableColumns = _columns.Where(i => EColumnTypeGroups.Textual.Contains(i.Type)).Where(i => _visibleColumns.FirstOrDefault(x => x.Column == i.Name) != null);
+        _filterableColumns = _columns.OnlyFilterableFields()
+            .Where(i => _visibleColumns.FirstOrDefault(x => x.Column == i.Name) != null);
+        foreach (var filterableColumn in _filterableColumns)
+        {
+            _filterValues[filterableColumn.GetKey()] = null;
+        }
+
+        _insideRelations = _context.GetInsideRelations(_table.Schema, _table.Table);
+        var authState = await AuthenticationStateTask;
+        _relationConfigs = await _insideRelations.LoadRelationsConfigs(authState.User.Identity.Name, UserSettingsDataSource);
+        _viewConfigs = await _visibleColumns.LoadViewConfigs(_table, authState.User.Identity.Name, UserSettingsDataSource, null);
+    }
+
+    private Task<TableData<DataSourceDictionary>> LoadData(TableState state)
+    {
+        if (_context == null || _table == null)
+            return Task.FromResult(new TableData<DataSourceDictionary>());
+
+        var joins = _relationConfigs.Where(relationConfig => _viewConfigs[relationConfig.Key.Column]).Select(relationConfig => new JoinInput
+        {
+            Schema = relationConfig.Key.TargetSchema,
+            Table = relationConfig.Key.TargetTable,
+            Alias = relationConfig.Key.GetAlias(),
+            On = new ConditionColumnInput
+            {
+                Alias = relationConfig.Key.GetAlias(),
+                Column = relationConfig.Key.TargetColumn,
+                TargetAlias = relationConfig.Key.Table,
+                TargetColumn = relationConfig.Key.Column,
+                Operator = EOperator.Equals
+            }
+        });
+
+        var selectCols = new List<SelectColDesc> { };
+
+        foreach (var visibleColumn in GetVisibleColumns())
+        {
+            selectCols.Add(new SelectColDesc
+            {
+                ColJoin = new[] { _table.Table, visibleColumn.Column },
+                Alias = visibleColumn.Column
+            });
+        }
+
+        foreach (var relationConfig in _relationConfigs.Where(relationConfig => _viewConfigs[relationConfig.Key.Column]))
+        {
+            foreach (var relationCol in relationConfig.Value)
+            {
+                selectCols.Add(new SelectColDesc
+                {
+                    ColJoin = new[] { relationConfig.Key.GetAlias(), relationCol },
+                    Alias = $"{relationConfig.Key.GetAlias()}.{relationCol}"
+                });
+            }
+        }
+
+        var where = new ConditionAndInput
+        {
+            Conditions = new[]
+            {
+                _searchString != null
+                    ? new ConditionOrInput
+                    {
+                        Conditions = _searchableColumns.Select(targetCol => new ConditionValueInput
+                        {
+                            Alias = _table.Table,
+                            Column = targetCol.Name,
+                            Value = _searchString,
+                            Operator = EOperator.Contains,
+                            Mode = EMode.Insensitive
+                        })
+                    }
+                    : ConditionValueInput.GetDefaultCondition(),
+                new ConditionAndInput
+                {
+                    Conditions = _filterableColumns.Where(i => _filterValues[i.GetKey()] != null)
+                        .Select((col) => col.BuildFilterCondition(_table.Table, _filterValues[col.GetKey()]!)).ToList()
+                }
+            }
+        };
+
+        var totalCount = _context.Count
+        (
+            new SelectInput
+            {
+                Schema = _table.Schema,
+                Table = _table.Table,
+                Alias = _table.Table,
+                Where = where,
+            }
+        );
+
+        var data = _context
+            .Select
+            (
+                new SelectInput
+                {
+                    Schema = _table.Schema,
+                    Table = _table.Table,
+                    Alias = _table.Table,
+                    Limit = state.PageSize,
+                    Offset = state.Page * state.PageSize,
+                    Join = joins,
+                    SelectedColumns = selectCols,
+                    Where = where,
+                    OrderBy = state.SortLabel != null
+                        ? new[]
+                        {
+                            new OrderInput
+                            {
+                                Alias = _table.Table,
+                                Column = state.SortLabel,
+                                Direction = state.SortDirection == SortDirection.Ascending ? OrderType.Asc : OrderType.Desc
+                            }
+                        }
+                        : new[]
+                        {
+                            new OrderInput
+                            {
+                                Alias = _table.Table,
+                                Column = _columns?.FirstOrDefault(i => i.IsPrimary)?.Name ?? _columns!.First().Name,
+                                Direction = OrderType.Asc
+                            }
+                        }
+                }
+            )
+            .ToList();
+
+        return Task.FromResult
+        (
+            new TableData<DataSourceDictionary>
+            {
+                TotalItems = Convert.ToInt32(totalCount),
+                Items = data
+            }
+        );
+    }
+
+    private bool HasAnyFilter()
+    {
+        return _filterableColumns.Any(i => _filterValues[i.GetKey()] != null);
+    }
+
+    private void OnSearch(string text)
+    {
+        _searchString = text;
+        _tableReference?.ReloadServerData();
+    }
+
+    private async Task RefreshTable()
+    {
+        await _tableReference?.ReloadServerData();
+    }
+
+    private async Task OnDeleteAsync()
+    {
+        if (_columns == null || _context == null || !_selectedItems.Any())
+            return;
+
+        var outsideRelations = _context.GetOutsideRelations(_table!.Schema, _table.Table).Where(x => x.Table == _table.Table && x.Schema == _table.Schema).ToList();
+        var parameters = new DialogParameters
+        {
+            {
+                "CascadeOption", outsideRelations?.Count > 0
+            },
+            { "Multiple", _selectedItems.Count > 1 }
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteDialog>("Are you sure?", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            foreach (var entity in _selectedItems)
+            {
+                await DeleteItemAsync(entity, (bool)(result.Data?.GetType().GetProperty("cascade")?.GetValue(result.Data) ?? false));
+            }
+
+            Snackbar.Add("Deleted", Severity.Success);
+            _tableReference?.ReloadServerData();
+        }
+    }
+
+    private async Task OnDeleteItemAsync(DataSourceDictionary entity)
+    {
+        if (_columns == null || _context == null)
+            return;
+
+        var outsideRelations = _context.GetOutsideRelations(_table!.Schema, _table.Table).Where(x => x.Table == _table.Table && x.Schema == _table.Schema).ToList();
+        var parameters = new DialogParameters
+        {
+            {
+                "CascadeOption", outsideRelations?.Count > 0
+            },
+        };
+
+        var dialog = await DialogService.ShowAsync<DeleteDialog>("Are you sure?", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await DeleteItemAsync(entity, (bool)(result.Data?.GetType().GetProperty("cascade")?.GetValue(result.Data) ?? false));
+
+            Snackbar.Add("Deleted", Severity.Success);
+            _tableReference?.ReloadServerData();
+        }
+    }
+
+    private async Task DeleteItemAsync(DataSourceDictionary entity, bool cascade)
+    {
+        var primaryCols = entity.GetPrimaryColumns(_columns!).ToDictionary(x => x.Key, x => new StringValues(x.Value!.ToString()));
+        var outsideRelations = _context!.GetOutsideRelations(_table!.Schema, _table.Table).Where(x => x.Table == _table.Table && x.Schema == _table.Schema).ToList();
+
+        #region ValidationFunctions
+
+        var ctx = new ValidationContext
+        {
+            Data = entity
+        };
+        var validationOutputs = await ctx.ExecuteValidationFunctions(
+            FunctionService,
+            ApplicationOptions.Clouded.Admin.FunctionProviders,
+            ApplicationOptions.Clouded.Admin.GlobalDeleteOperationFunctions,
+            _table?.DeleteOperationFunctions
+        );
+        if (validationOutputs.Any(i => !i.Passed))
+        {
+            Snackbar.Add("<b>Validation not passed:</b> <br><ul>" + string.Join("", validationOutputs
+                .Where(i => !i.Passed)
+                .Select(i => $"<li>{i.Message}</li>")
+            ) + "</ul>", Severity.Error);
+            return;
+        }
+
+        #endregion
+
+        #region BeforeHooks
+
+        ApplicationOptions.Clouded.Admin.GlobalDeleteOperationFunctions?.BeforeHooks?.ExecuteVoidHooks(EFunctionType.BeforeHook, ApplicationOptions.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+        _table?.DeleteOperationFunctions?.BeforeHooks?.ExecuteVoidHooks(EFunctionType.BeforeHook, ApplicationOptions.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+
+        #endregion
+
+        if (cascade)
+        {
+            outsideRelations?.CascadeDeleteRelations(entity, _context);
+        }
+
+        _context.Delete(new DeleteInput
+        {
+            Schema = _table.Schema,
+            Table = _table.Table,
+            Alias = _table.Table,
+            Where = new ConditionAndInput
+            {
+                Conditions = ColumnHelper.Where(_table.Table, primaryCols, _columns!)
+            }
+        });
+
+        #region AfterHooks
+
+        ApplicationOptions.Clouded.Admin.GlobalDeleteOperationFunctions?.AfterHooks?.ExecuteVoidHooks(EFunctionType.AfterHook, ApplicationOptions.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+        _table?.DeleteOperationFunctions?.AfterHooks?.ExecuteVoidHooks(EFunctionType.AfterHook, ApplicationOptions.Clouded.Admin.FunctionProviders, FunctionService, new HookContext());
+
+        #endregion
+    }
+
+    private void SetValue(ColumnResult column, object? value)
+    {
+        if (value is "")
+        {
+            _filterValues[column.GetKey()] = null;
+        }
+        else
+        {
+            _filterValues[column.GetKey()] = value;
+        }
+
+        _tableReference?.ReloadServerData();
+    }
+
+    private async void SetViewValue(TableColumnOptions column, bool value)
+    {
+        var authState = await AuthenticationStateTask;
+
+        _viewConfigs[column.Column] = value;
+
+        _table!.SetViewsConfig(
+            ApplicationOptions.Clouded.Admin.Auth.UserSettings,
+            authState.User.Identity!.Name!,
+            UserSettingsDataSource,
+            _viewConfigs,
+            null
+        );
+
+        _tableReference?.ReloadServerData();
+    }
+
+    private IEnumerable<TableColumnOptions> GetVisibleColumns()
+    {
+        return _visibleColumns.Where(c => _viewConfigs[c.Column]);
+    }
+}

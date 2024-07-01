@@ -1,0 +1,191 @@
+﻿@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/authentications/{AuthProviderId}/function"
+@using Clouded.Platform.Database.Entities.Clouded
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Function.Library.Enums
+@inject IDbContextResolver DbContextResolver
+@inject ISnackbar Snackbar
+
+<PageTitle>@Project.Name | Authentications - @_authProvider?.Name</PageTitle>
+
+<MudContainer Class="pa-4">
+    @* TODO *@
+    @* <MudDropContainer *@
+    @*     $1$ @ref="" #1# *@
+    @*     T="AuthProviderFunctionRelationEntity" *@
+    @*     $1$ Class="d-flex flex-wrap flex-grow-1" #1# *@
+    @*     Items="@_dropzoneItems"  *@
+    @*     ItemsSelector="@((item,dropzone) => item.Selector == dropzone)" *@
+    @*     ItemDropped="ItemUpdated"> *@
+    @*     <MudStack Row="@true"> *@
+    @*         <MudPaper Class="pa-4" Width="35%" Square="true"> *@
+    @*             <MudTreeView T="string"> *@
+    @*                 @foreach (var functionProvider in _functionProviders) *@
+    @*                 { *@
+    @*                     <MudTreeViewItem *@
+    @*                         Icon="@Icons.Material.Filled.Workspaces" *@
+    @*                         Value="@functionProvider.Name"> *@
+    @*                         @foreach (var function in functionProvider.Functions) *@
+    @*                         { *@
+    @*                             @if (function.Type == FunctionType.Hook) *@
+    @*                             { *@
+    @*                                 <MudTreeViewItem *@
+    @*                                     Icon="@Icons.Material.Filled.AccountTree" *@
+    @*                                     Value="@($"({function.Type.GetEnumName()}) {function.Name}")"> *@
+    @*                                     @foreach (var hookType in Enum.GetNames(typeof(EFunctionType))) *@
+    @*                                     { *@
+    @*                                         <MudTreeViewItem *@
+    @*                                             Icon="@Icons.Material.Filled.Webhook" *@
+    @*                                             Value="@hookType"/> *@
+    @*                                     } *@
+    @*                                 </MudTreeViewItem> *@
+    @*                             } *@
+    @*                             else *@
+    @*                             { *@
+    @*                                 <MudTreeViewItem *@
+    @*                                     Icon="@Icons.Material.Filled.Functions" *@
+    @*                                     Value="@($"({function.Type.GetEnumName().First()}) {function.Name}")"/> *@
+    @*                             } *@
+    @*                         } *@
+    @*                     </MudTreeViewItem> *@
+    @*                 } *@
+    @*             </MudTreeView> *@
+    @*             $1$ @if (_selectedFunctionProvider == null) #1# *@
+    @*             $1$ { #1# *@
+    @*             $1$     <MudList Class="mb-6" Clickable="true"> #1# *@
+    @*             $1$         @foreach (var functionProvider in _functionProviders) #1# *@
+    @*             $1$         { #1# *@
+    @*             $1$             <MudListItem OnClick="() => SelectFunctionProvider(functionProvider)"> #1# *@
+    @*             $1$                 <MudText>@functionProvider.Name</MudText> #1# *@
+    @*             $1$             </MudListItem> #1# *@
+    @*             $1$         } #1# *@
+    @*             $1$     </MudList> #1# *@
+    @*             $1$ } #1# *@
+    @*             $1$ else #1# *@
+    @*             $1$ { #1# *@
+    @*             $1$     <MudButton #1# *@
+    @*             $1$         Class="pa-2 ma-2" #1# *@
+    @*             $1$         ButtonType="ButtonType.Button" #1# *@
+    @*             $1$         Variant="Variant.Text" #1# *@
+    @*             $1$         StartIcon="@Icons.Material.Sharp.ArrowBack" #1# *@
+    @*             $1$         Color="Color.Primary" #1# *@
+    @*             $1$         Size="Size.Large" #1# *@
+    @*             $1$         OnClick="() => SelectFunctionProvider(null)"> #1# *@
+    @*             $1$         @_selectedFunctionProvider?.Name #1# *@
+    @*             $1$     </MudButton> #1# *@
+    @*             $1$ #1# *@
+    @*             $1$     <MudTabs ApplyEffectsToContainer="true" PanelClass="pa-6"> #1# *@
+    @*             $1$         <MudTabPanel Text="Functions"> #1# *@
+    @*             $1$             @foreach (var function in _selectedFunctionProvider.Functions.Where(x => x.Type == FunctionType.Function)) #1# *@
+    @*             $1$             { #1# *@
+    @*             $1$                 <MudText>@function.Name</MudText> #1# *@
+    @*             $1$             } #1# *@
+    @*             $1$         </MudTabPanel> #1# *@
+    @*             $1$         <MudTabPanel Text="Hooks"> #1# *@
+    @*             $1$             @foreach (var hook in _selectedFunctionProvider.Functions.Where(x => x.Type == FunctionType.Hook)) #1# *@
+    @*             $1$             { #1# *@
+    @*             $1$                 <MudText>@hook.Name</MudText> #1# *@
+    @*             $1$             } #1# *@
+    @*             $1$         </MudTabPanel> #1# *@
+    @*             $1$     </MudTabs> #1# *@
+    @*             $1$ } #1# *@
+    @*         </MudPaper> *@
+    @* *@
+    @*         <MudPaper Class="pa-4" Width="65%" Square="true"> *@
+    @*             <MudAutocomplete *@
+    @*                 T="string" *@
+    @*                 Label="Search" *@
+    @*                 SearchFunc="Search" *@
+    @*                 ResetValueOnEmptyText="true" *@
+    @*                 MaxItems="null" *@
+    @*                 AdornmentIcon="@Icons.Material.Filled.Search" *@
+    @*                 AdornmentColor="Color.Primary" *@
+    @*                 FullWidth="true"/> *@
+    @*         </MudPaper> *@
+    @*     </MudStack> *@
+    @* </MudDropContainer> *@
+
+    <MudButton
+        OnClick="Save"
+        ButtonType="ButtonType.Submit"
+        Variant="Variant.Filled"
+        Color="Color.Primary"
+        Size="Size.Large"
+        FullWidth="true">
+        Save
+    </MudButton>
+</MudContainer>
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+    
+    [Parameter]
+    public string AuthProviderId { get; set; } = null!;
+    
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private CloudedDbContext _context = null!;
+    private AuthProviderEntity? _authProvider;
+    private IEnumerable<FunctionProviderEntity> _functionProviders =
+        Array.Empty<FunctionProviderEntity>();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _context = DbContextResolver.UseScopedContext<CloudedDbContext>();
+
+        if (long.TryParse(AuthProviderId, out var authProviderId))
+        {
+            _authProvider = await _context.GetAsync<AuthProviderEntity>(authProviderId, CancellationToken);
+
+            if (long.TryParse(ProjectId, out var projectId))
+            {
+                _functionProviders = await _context
+                    .GetAll<FunctionProviderEntity>()
+                    .Where(x => x.ProjectId == projectId)
+                    .ToListAsync();
+            }
+        }
+    }
+
+    private Task<IEnumerable<string>> Search(string text) => 
+        Task.FromResult
+        (
+            !string.IsNullOrEmpty(text)
+                ? Enum.GetNames(typeof(EAuthProviderFunctionType)).Where(name => name.Contains(text))
+                : Enum.GetNames(typeof(EAuthProviderFunctionType))
+        );
+
+    // private bool IsFunctionSelected(FunctionEntity providerHook) =>
+    //     _authProvider?.Hooks.Any
+    //     (
+    //         x =>
+    //             x.Provider.Id == providerHook.ProviderId
+    //             && x.Id == providerHook.Id
+    //     ) ?? false;
+    //
+    // private void SelectFunction(FunctionEntity providerHook)
+    // {
+    //     if (_authProvider == null)
+    //         return;
+    //     
+    //     var hook = _authProvider.Hooks.SingleOrDefault
+    //     (
+    //         x =>
+    //             x.Provider.Id == providerHook.ProviderId
+    //             && x.Id == providerHook.Id
+    //     );
+    //
+    //     if (hook == null)
+    //         _authProvider.Hooks.Add(providerHook);
+    //     else 
+    //         _authProvider.Hooks.Remove(hook);
+    // }
+
+    private async Task Save()
+    {
+        await _context.SaveChangesAsync();
+    }
+}

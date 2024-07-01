@@ -1,0 +1,18 @@
+helmDefaults:
+  atomic: true
+  wait: true
+
+  # ---------------------  IMPORTANT ---------------------------
+  # Uncomment the paths below for the applications that you'd like to manage.
+  # By default all the helmfiles have `install:true`. So if you uncomment one of these
+  # helmfiles, the associated application will be tried to be installed or updated.
+  #
+  # You can set `install:false` to either uninstall the app from your cluster, or
+  # keep it uninstalled if you don't have it already installed.
+  #
+  # For more information, reference the Helmfile repository at:
+  # https://github.com/roboll/helmfile
+  # ------------------------------------------------------------
+
+helmfiles:
+  - path: applications/ingress-nginx/helmfile.yaml

@@ -1,0 +1,68 @@
+@page "/management/{TableName}/create"
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Admin.Provider.Contexts
+@attribute [Authorize]
+@inject ApplicationOptions Options
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+@if (_table != null)
+{
+    <CreateForm
+        Table="@_table"
+        Context="@_context"
+        Columns="@_columns"
+        InsideRelations="@_insideRelations"
+        OnCancelClb="@(() => NavigationManager.NavigateTo($"/management/{TableName}"))"
+        OnSubmitClb="@((_) => NavigationManager.NavigateTo($"/management/{TableName}"))"/>
+}
+
+@code
+{
+    [Parameter]
+    public string? TableName { get; set; }
+
+    private List<DataSourceOptions>? _dataSources;
+    private List<TableOptions>? _tables;
+
+    private DataSourceOptions? _dataSource;
+    private TableOptions? _table;
+    private IEnumerable<ColumnResult>? _columns;
+    private IEnumerable<RelationResult>? _insideRelations;
+    private AdminContext? _context;
+
+    protected override void OnInitialized()
+    {
+        _dataSources = Options.Clouded.DataSources.ToList();
+        _tables = Options.Clouded.Admin.Tables.ToList();
+
+        if (_dataSources == null || _tables == null)
+            return;
+
+        if (TableName == null || _tables.All(x => x.Table != TableName))
+        {
+            NavigationManager.NavigateTo("/"); // TODO
+            return;
+        }
+
+        _table = _tables.First(x => x.Table == TableName);
+        _dataSource = _dataSources.First(x => x.Id == _table.DataSourceId);
+
+        _context = new AdminContext
+            (
+            new Connection
+            {
+                Type = _dataSource.Type,
+                Server = _dataSource.Server,
+                Port = _dataSource.Port,
+                Username = _dataSource.Username,
+                Password = _dataSource.Password,
+                Database = _dataSource.Database
+            },
+            Snackbar
+            );
+
+        _columns = _context.GetColumns(_table.Schema, _table.Table);
+        _insideRelations = _context.GetInsideRelations(_table.Schema, _table.Table);
+    }
+}

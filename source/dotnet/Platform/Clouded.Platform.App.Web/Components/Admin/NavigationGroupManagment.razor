@@ -1,0 +1,123 @@
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+<MudGrid Spacing="2">
+    @foreach (var group in Groups)
+    {
+        <MudItem xs="2">
+            <MudNumericField
+                T="int"
+                Required="true"
+                Variant="Variant.Outlined"
+                Label="Order"
+                Min="0"
+                Step="1"
+                ReadOnly="@Readonly"
+                For="@(() => group.Order)"
+                @bind-Value="group.Order"/>
+        </MudItem>
+        <MudItem xs="3">
+            <MudTextField
+                T="string?"
+                ReadOnly="@Readonly"
+                Value="group.Label"
+                ValueChanged="@((value) => OnLabelChange(group, value))"
+                For="@(() => group.Label)"
+                Label="Label"
+                Required="true"
+                Variant="Variant.Outlined"/>
+        </MudItem>
+        <MudItem xs="3">
+            <MudTextField
+                T="string?"
+                ReadOnly="@true"
+                @bind-Value="group.Key"
+                For="@(() => group.Key)"
+                Label="Key"
+                Required="true"
+                Variant="Variant.Outlined"/>
+        </MudItem>
+        <MudItem xs="3">
+            <IconsField
+                ReadOnly="@Readonly"
+                Variant="Variant.Outlined"
+                For="@(() => group.Icon)"
+                Label="Icon"
+                Placeholder="Choose an option"
+                ResetValueOnEmptyText="@true"
+                CoerceText="@false"
+                Clearable="@true"
+                MinCharacters="3"
+                DebounceInterval="500"
+                CoerceValue="@false"
+                @bind-Value="@group.Icon"/>
+        </MudItem>
+
+        @if (!Readonly)
+        {
+            <MudItem xs="1" Style="display:flex;align-items: center">
+                <MudIconButton
+                    OnClick="@(() => RemoveGroup(group))"
+                    Color="Color.Secondary"
+                    Icon="@Icons.Material.Filled.Remove"
+                    Variant="Variant.Filled"/>
+            </MudItem>
+        }
+    }
+
+    @if (!Readonly)
+    {
+        <MudItem xs="12">
+            <MudButton
+                OnClick="@AddNewGroup"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Add"
+                Variant="Variant.Filled">
+                Add
+            </MudButton>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+
+    [Parameter] public bool Readonly { get; set; } = true;
+
+    [Parameter] public IEnumerable<AdminProviderNavigationGroupInput> Groups { get; set; } = null!;
+
+    [Parameter] public EventCallback<IEnumerable<AdminProviderNavigationGroupInput>> GroupsChanged { get; set; }
+
+    protected override void OnInitialized()
+    {
+    }
+
+    private void OnLabelChange(AdminProviderNavigationGroupInput group, string? obj)
+    {
+        if (obj == null)
+        {
+            return;
+        }
+
+        group.Label = obj;
+        group.Key = obj.ToLower().Replace(" ", "_");
+    }
+
+    private async void AddNewGroup()
+    {
+        var list = Groups.ToList();
+        list.Add(new AdminProviderNavigationGroupInput
+        {
+            Order = list.LastOrDefault()?.Order + 1 ?? 0
+        });
+
+        await GroupsChanged.InvokeAsync(list);
+    }
+
+    private async void RemoveGroup(AdminProviderNavigationGroupInput group)
+    {
+        var list = Groups.ToList();
+        list.Remove(group);
+
+        await GroupsChanged.InvokeAsync(list);
+    }
+
+}
+

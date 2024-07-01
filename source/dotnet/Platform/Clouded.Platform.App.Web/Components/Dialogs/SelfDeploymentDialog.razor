@@ -1,0 +1,35 @@
+<MudDialog>
+    <DialogContent>
+        <MudText>Self-deployment script that will be downloaded can be used to deploy the provider by yourself.</MudText>
+        <MudText>The zip contains all files needed to deploy the provider with your current saved configuration.</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@Color.Success" Variant="Variant.Filled" OnClick="Submit">Download</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public bool CascadeOption { get; set; }
+
+    private bool _cascadeValue = true;
+
+
+    protected override void OnInitialized()
+    {
+        MudDialog.SetTitle("Self-deployment");
+        MudDialog.SetOptions(new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.ExtraSmall });
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(new
+    {
+        cascade = _cascadeValue
+    }));
+
+    void Cancel() => MudDialog.Cancel();
+}

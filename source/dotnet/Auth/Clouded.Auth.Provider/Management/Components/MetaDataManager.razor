@@ -1,0 +1,102 @@
+<MudPaper Class="pa-2">
+    <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Metadata</MudText>
+    <MudGrid Class="align-center" Justify="Justify.FlexEnd" Spacing="1">
+        <MudItem xs="12">
+            <MudTextField
+                Label="Key"
+                Variant="Variant.Outlined"
+                @bind-Value="_key"/>
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField
+                Label="Value"
+                Variant="Variant.Outlined"
+                @bind-Value="_value"/>
+        </MudItem>
+        <MudItem>
+            <MudButton
+                StartIcon="@Icons.Material.Filled.Add"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Outlined"
+                Color="Color.Primary"
+                OnClick="Add">
+                Add
+            </MudButton>
+        </MudItem>
+
+        
+        <MudItem xs="12">
+            <MudList
+                DisableGutters="false"
+                Dense="true">
+                <MudListSubheader Class="pb-0">
+                    @if (MetaData.Any())
+                    {
+                        <div>Custom attributes</div>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center">
+                            <MudIcon Class="pr-1" Color="Color.Info" Icon="@Icons.Material.Filled.Info"></MudIcon>
+                            There are no custom attributes
+                        </MudText>
+                    }
+                </MudListSubheader>
+
+                @foreach (var meta in MetaData)
+                {
+                    <MudListItem Class="d-flex justify-between">
+                        <MudGrid Class="align-center" Justify="Justify.SpaceBetween">
+                            <MudItem xs="8">
+                                <MudChip Class="overflow-hidden" Icon="@Icons.Material.Filled.Key" Text="@meta.Key"/>
+                                <MudChip Class="overflow-hidden" Icon="@Icons.Material.Outlined.Label" Text="@meta.Value?.ToString()"/>
+                            </MudItem>
+                            <MudItem>
+                                <MudIconButton
+                                    Icon="@Icons.Material.Filled.Delete"
+                                    Color="Color.Tertiary"
+                                    Size="Size.Medium"
+                                    OnClick="() => Remove(meta)"/>
+                            </MudItem>
+                        </MudGrid>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public required Dictionary<string, object?> MetaData { get; set; } 
+    
+    [Parameter]
+    public EventCallback<Dictionary<string, object?>>? MetaDataChanged { get; set; }
+
+    private string? _key;
+    private string? _value;
+
+    private void Add()
+    {
+        if (string.IsNullOrEmpty(_key) || string.IsNullOrEmpty(_value))
+            return;
+
+        var alreadyPresent = MetaData.Any
+        (
+            meta =>
+                meta.Key == _key
+        );
+
+        if (alreadyPresent)
+            return;
+
+        MetaData.Add(_key, _value);
+        _key = null;
+        _value = null;
+        
+        MetaDataChanged?.InvokeAsync(MetaData);
+    }
+
+    private void Remove(KeyValuePair<string, object?> meta) => 
+        MetaData.Remove(meta.Key);
+}

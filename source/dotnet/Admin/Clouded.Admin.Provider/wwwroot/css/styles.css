@@ -1,0 +1,7 @@
+.mud-table-hover .mud-table-body .mud-table-row:hover {
+    cursor: pointer;
+}
+
+.filter-menu-item.mud-list-item-clickable:hover {
+    background-color: transparent;
+}

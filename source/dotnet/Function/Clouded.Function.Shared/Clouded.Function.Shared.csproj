@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Younics, s.r.o.</Authors>
+    <RepositoryUrl>https://github.com/Younics/clouded</RepositoryUrl>
+    <PackageVersion>1.0.4</PackageVersion>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

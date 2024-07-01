@@ -1,0 +1,27 @@
+﻿@inherits LayoutComponentBase
+@inject IManagementAuthService ManagementAuthService
+
+@if (_isAuthenticated != null)
+{
+    @if (_isAuthenticated.Value)
+    {
+        <Redirect To="/"/>
+    }
+    else
+    {
+        <MudLayout>
+            @Body
+        </MudLayout>
+    }
+}
+
+@code {
+
+    private bool? _isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await ManagementAuthService.IsAuthenticatedAsync();
+    }
+    
+}

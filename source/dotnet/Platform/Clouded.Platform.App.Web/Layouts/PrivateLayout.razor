@@ -1,0 +1,24 @@
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<MudLayout>
+    <MudAppBar Elevation="0">
+        <MudSpacer/>
+        <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Tertiary" Edge="Edge.End" OnClick="@(_ => Logout())"/>
+    </MudAppBar>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="my-16 pt-16">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+}

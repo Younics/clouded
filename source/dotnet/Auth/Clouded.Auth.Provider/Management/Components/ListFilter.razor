@@ -1,0 +1,113 @@
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Shared.Enums
+@if (Columns.Any() && Value.Any())
+{
+    <MudMenu DisableRipple="@true" Icon="@(!HasAnyFilter() ? Icons.Material.Outlined.FilterAlt : Icons.Material.Filled.FilterAlt)">
+        @foreach (var filterableColumn in Columns)
+        {
+            @if (filterableColumn.IsFilterable())
+            {
+                <MudMenuItem Class="filter-menu-item" AutoClose="@false">
+                    @switch (filterableColumn.Type)
+                    {
+                        case EColumnType.Boolean:
+                            <MudSwitch
+                                T="bool?"
+                                Label="@filterableColumn.Name"
+                                Checked="@((bool?)Value[filterableColumn.GetKey()])"
+                                CheckedChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                        case EColumnType.Varchar:
+                        case EColumnType.Text:
+                            <MudTextField
+                                T="string?"
+                                Variant="Variant.Outlined"
+                                Label="@filterableColumn.Name"
+                                Value="@((string?)Value[filterableColumn.GetKey()])"
+                                ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                        case EColumnType.SmallSerial:
+                            <MudNumericField
+                                T="short?"
+                                Variant="Variant.Outlined"
+                                Label="@filterableColumn.Name"
+                                Step="1"
+                                Value="@((short?)Value[filterableColumn.GetKey()])"
+                                ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                        case EColumnType.Serial:
+                        case EColumnType.Int:
+                            <MudNumericField
+                                T="int?"
+                                Variant="Variant.Outlined"
+                                Label="@filterableColumn.Name"
+                                Step="1"
+                                Value="@((int?)Value[filterableColumn.GetKey()])"
+                                ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                        case EColumnType.BigSerial:
+                        case EColumnType.Long:
+                            <MudNumericField
+                                T="long?"
+                                Variant="Variant.Outlined"
+                                Label="@filterableColumn.Name"
+                                Step="1L"
+                                Value="@((long?)Value[filterableColumn.GetKey()])"
+                                ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                        case EColumnType.Double:
+                            <MudNumericField
+                                T="float?"
+                                Variant="Variant.Outlined"
+                                Label="@filterableColumn.Name"
+                                Step="0.1F"
+                                Value="@((float?)Value[filterableColumn.GetKey()])"
+                                ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                        case EColumnType.Decimal:
+                            <MudNumericField
+                                T="decimal?"
+                                Variant="Variant.Outlined"
+                                Label="@filterableColumn.Name"
+                                Step="0.1M"
+                                Value="@((decimal?)Value[filterableColumn.GetKey()])"
+                                ValueChanged="@((val) => SetValue(filterableColumn, val))"/>
+                            break;
+                    }
+                </MudMenuItem>
+            }
+        }
+    </MudMenu>
+}
+
+@code {
+
+    [Parameter, EditorRequired]
+    public required IEnumerable<ColumnResult> Columns { get; set; } = new List<ColumnResult>();
+    
+    [Parameter, EditorRequired]
+    public required Dictionary<string, object?> Value { get; set; } 
+    
+    [Parameter]
+    public required EventCallback<Dictionary<string, object?>> ValueChanged { get; set; }
+
+    private bool HasAnyFilter()
+    {
+        return Columns.Any(i => Value[i.GetKey()] != null);
+    }
+
+    private void SetValue(ColumnResult column, object? value)
+    {
+        if (value is "")
+        {
+            Value[column.GetKey()] = null;
+        }
+        else
+        {
+            Value[column.GetKey()] = value;
+        }
+        
+        ValueChanged.InvokeAsync(Value);
+    }
+
+}

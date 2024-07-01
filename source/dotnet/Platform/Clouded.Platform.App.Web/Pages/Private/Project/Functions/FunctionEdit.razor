@@ -1,0 +1,65 @@
+@using Clouded.Platform.Database.Entities.Clouded
+@using AutoMapper
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/functions/{FunctionProviderId}/edit"
+@inject IDbContextResolver DbContextResolver
+@inject IFunctionProviderService FunctionProviderService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager;
+@inject IMapper Mapper
+
+<PageTitle>@Project.Name | Function provider - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <FunctionForm Title="Function provider: " Model="@Input" Readonly="@false" ProjectId="@ProjectId" IsCreate="@false" OnValidSubmit="OnValidSubmit"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string FunctionProviderId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private FunctionProviderInput? Input { get; set; }
+
+    private CloudedDbContext _dbContext = null!;
+    private FunctionProviderEntity? _functionProviderEntity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver
+            .UseScopedContext<CloudedDbContext>();
+
+        _functionProviderEntity = await _dbContext
+            .GetAsync<FunctionProviderEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(FunctionProviderId),
+                CancellationToken
+            );
+
+
+        if (_functionProviderEntity != null)
+        {
+            var input = Mapper.Map<FunctionProviderInput>(_functionProviderEntity);
+
+            Input = input;
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+        await FunctionProviderService.UpdateAsync(Input, cancellationToken: CancellationToken);
+
+        Snackbar.Add("Function provider updated", Severity.Success);
+        
+        NavigationManager.NavigateTo(FunctionProviderService.GetDetailRoute(ProjectId, Input.Id));
+    }
+}

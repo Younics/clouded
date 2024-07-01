@@ -1,0 +1,41 @@
+@using Clouded.Platform.Models.Enums
+<MudDialog>
+    <DialogContent>
+        <MudText>Current status of the provider is: <b>@CurrentStatus</b>.</MudText>
+        <MudText>Do you want to move the provider to new status: <b>@NewStatus</b>?</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@Color.Success" Variant="Variant.Filled" OnClick="Submit">Submit</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public bool CascadeOption { get; set; }
+
+    [Parameter]
+    public EProviderStatus CurrentStatus { get; set; }
+
+    [Parameter]
+    public EProviderStatus NewStatus { get; set; }
+
+    private bool _cascadeValue = true;
+
+
+    protected override void OnInitialized()
+    {
+        MudDialog.SetOptions(new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.ExtraSmall });
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(new
+    {
+        cascade = _cascadeValue
+    }));
+
+    void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,56 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/domains/{DomainId}"
+@inject IDbContextResolver DbContextResolver
+@inject IDomainService DomainService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject ApplicationOptions Options
+
+<PageTitle>@Project.Name | Domains - @Input?.Value</PageTitle>
+
+@if (Input != null)
+{
+    <DomainForm Title="Domain detail" Model="@Input" OnValidSubmit="@OnValidSubmit" ProjectId="@ProjectId"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string DomainId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private DomainInput? Input { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var domainEntity = await DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAsync<DomainEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(DomainId),
+                CancellationToken
+            );
+
+        if (domainEntity != null)
+        {
+            Input = new DomainInput
+            {
+                Id = domainEntity.Id,
+                Value = domainEntity.Value,
+                ProjectId = domainEntity.ProjectId,
+            };
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+    }
+}

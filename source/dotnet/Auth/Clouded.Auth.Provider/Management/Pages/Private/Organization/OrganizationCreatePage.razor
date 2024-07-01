@@ -1,0 +1,85 @@
+@page "/management/organizations/create"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@using Clouded.Auth.Provider.Management.Enums
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IOrganizationDataSource OrganizationDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Create Organization</MudText>
+        </MudItem>
+        <MudItem sm="12" md="6" lg="5">
+          <MudPaper Class="pa-2">
+                <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Organization attributes</MudText>
+              <GenericFields
+                  TDictionary="OrganizationDictionary"
+                  Mode="EGenericFieldMode.Create"
+                  Columns="@_organizationColumns.Where(column => column.Name != Options.Clouded.Auth.Identity.Organization!.ColumnId)"
+                  @bind-Data="_organization"/>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem sm="12" md="6" lg="5">
+            <MetaDataManager 
+                @bind-MetaData="_organizationMetaData"
+            />
+        </MudItem>
+
+        <MudItem Class="d-flex justify-between" xs="12" >
+            <MudButton
+                HtmlTag="a"
+                Href="/management/organization"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <MudButton
+                OnClick="Create"
+                StartIcon="@Icons.Material.Filled.Check"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary"
+                Class="ml-auto">
+                Create
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private bool _initiallyLoaded;
+
+    private IEnumerable<ColumnResult> _organizationColumns = null!;
+    private OrganizationDictionary _organization = new();
+    private Dictionary<string, object?> _organizationMetaData = new();
+
+    protected override void OnInitialized()
+    {
+        _organizationColumns = OrganizationDataSource
+            .GetEntityColumns()
+            .Where(x => x.Name != Options.Clouded.Auth.Identity.Organization!.ColumnId);
+        
+        _initiallyLoaded = true;
+    }
+    
+    private void Create()
+    {
+        var organization = OrganizationDataSource.EntityCreate(_organization);
+        OrganizationDataSource.EntityMetaDataUpdate
+        (
+            organization[Options.Clouded.Auth.Identity.Organization!.ColumnId],
+            _organizationMetaData
+        );
+
+        Snackbar.Add("Created", Severity.Success);
+        NavigationManager.NavigateTo("/management/organizations");
+    }
+}

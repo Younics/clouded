@@ -1,0 +1,93 @@
+@page "/management/domains/{DomainId}"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IDomainDataSource DomainDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Update domain</MudText>
+        </MudItem>
+        
+        <MudItem xs="12">
+            <MudPaper Class="pa-2">
+                <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Domain attributes</MudText>
+                <GenericFields
+                  TDictionary="DomainDictionary"
+                        Columns="_domainColumns"
+                        IdColumnName="@Options.Clouded.Auth.Identity.Domain!.ColumnId"
+                        @bind-Data="_domain"
+                    />
+            </MudPaper>
+        </MudItem>
+      
+        <MudItem Class="d-flex justify-between" xs="12">
+            <MudButton
+                HtmlTag="a"
+                Href="/management/domains"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <div class="ml-auto">
+                <MudButton
+                    OnClick="Delete"
+                    StartIcon="@Icons.Material.Filled.DeleteForever"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Delete
+                </MudButton>
+                <MudButton
+                    OnClick="Update"
+                    StartIcon="@Icons.Material.Filled.Check"
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary"
+                    Class="ml-auto">
+                    Update
+                </MudButton>
+            </div>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public string? DomainId { get; set; }
+
+    private bool _initiallyLoaded;
+
+    private IEnumerable<ColumnResult> _domainColumns = null!;
+    private DomainDictionary _domain = new();
+
+
+    protected override void OnInitialized()
+    {
+        _domainColumns = DomainDataSource.GetEntityColumns();
+        _domain = DomainDataSource.EntityFindById(DomainId);
+
+        _initiallyLoaded = true;
+    }
+
+    private void Update()
+    {
+        DomainDataSource.EntityUpdate(DomainId, _domain);
+
+        Snackbar.Add("Updated", Severity.Success);
+    }
+
+    private void Delete()
+    {
+        DomainDataSource.EntityDelete(DomainId);
+        
+        Snackbar.Add("Deleted", Severity.Success);
+        NavigationManager.NavigateTo("/management/domains");
+    }
+}

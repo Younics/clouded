@@ -1,0 +1,272 @@
+@using Clouded.Shared
+@using Clouded.Admin.Provider.Contracts
+@using BlazorComponentBus
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Admin.Provider.Services.Interfaces
+@using System.Reflection
+@inherits LayoutComponentBase
+@inject ApplicationOptions Options
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+@inject ComponentBus Bus
+
+
+<MudLayout Class="relative">
+    <MudOverlay @bind-Visible="@_isRelationDrawerOpen" DarkBackground="true" AutoClose="true" Absolute="true" OnClick="@CloseRelationDrawer"/>
+
+    <MudAppBar Elevation="0" Class="mud-background">
+        <MudBreadcrumbs Class="rounded mud-background mud-elevation-1 py-0" Items="_items" Separator=">"></MudBreadcrumbs>
+        <MudSpacer/>
+        @* <MudFab *@
+        @*     Class="mr-2" *@
+        @*     Size="Size.Small" *@
+        @*     Color="Color.Secondary" *@
+        @*     StartIcon="@Icons.Material.Filled.Settings"/> *@
+        <MudFab
+            Size="Size.Small"
+            Color="Color.Secondary"
+            StartIcon="@Icons.Material.Filled.Logout"
+            OnClick="@(_ => Logout())"/>
+
+    </MudAppBar>
+
+    <MudDrawer Anchor="Anchor.Left" Color="Color.Transparent" Variant="DrawerVariant.Mini" @bind-Open="_menuDrawerOpen" Elevation="0" OpenMiniOnHover="false">
+        <div Class="relative rounded mud-elevation-2 d-flex flex-column" Style="background: black; min-height: calc(100% - 3rem); margin: 1rem 0 1rem 1.55rem">
+            <MudDrawerHeader Class="d-flex justify-center">
+                <img width=@(_menuDrawerOpen ? "120" : "50") alt="logo" src="images/logo.png" class="absolute object-cover"/>
+            </MudDrawerHeader>
+
+            <div Class="pt-4 pb-12" style="height: 100px">
+                @if (_menuDrawerOpen)
+                {
+                    <MudText Style="white-space: nowrap" Color="Color.Secondary" Align="Align.Center">@Options.Clouded.Admin.Name</MudText>
+                }
+            </div>
+
+            <div Style="position: absolute; bottom: 80px; right: 6px">
+                <MudIconButton
+                    Color="Color.Secondary"
+                    Variant="Variant.Filled"
+                    DisableRipple="true"
+                    Class="fixed mud-elevation-7 z-50"
+                    Icon="@(_menuDrawerOpen ? Icons.Material.Filled.KeyboardArrowLeft : Icons.Material.Filled.KeyboardArrowRight)"
+                    Edge="Edge.Start"
+                    OnClick="@(_ => MenuDrawerToggle())"/>
+            </div>
+
+            <MudNavMenu Class="mud-secondary-text overflow-y-auto flex-grow-0" Bordered="true" Color="Color.Primary" Style="padding-left: 3px;">
+                @foreach (var menuGroup in _navGroups)
+                {
+                    <MudNavGroup Title="@menuGroup.Label" Icon="@_icons.GetValueOrDefault(menuGroup.Icon)" Expanded="@ShouldExpand(menuGroup)">
+                        @foreach (var tableOptions in _groupedMenuItems.First(x => x.Key == menuGroup.Key))
+                        {
+                            <MudNavLink
+                                IconColor="Color.Inherit"
+                                Href="@($"/management/{tableOptions.Table}")"
+                                Match="NavLinkMatch.Prefix"
+                                Icon="@_icons.GetValueOrDefault(tableOptions.Icon)">
+                                @tableOptions.Name
+                            </MudNavLink>
+                        }
+                    </MudNavGroup>
+                }
+
+                @if (_groupedMenuItems.FirstOrDefault(x => x.Key == null) != null)
+                {
+                    @foreach (var tableOptions in _groupedMenuItems.First(x => x.Key == null))
+                    {
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="@($"/management/{tableOptions.Table}")"
+                            Match="NavLinkMatch.All"
+                            Icon="@_icons.GetValueOrDefault(tableOptions.Icon)">
+                            @tableOptions.Name
+                        </MudNavLink>
+                    }
+                }
+            </MudNavMenu>
+        </div>
+    </MudDrawer>
+
+    @foreach (var relationContract in _relationContracts)
+    {
+        <MudDrawer Style="top: calc(var(--mud-appbar-height))" Width="50%" @bind-Open="@relationContract.IsOpen" Elevation="1" Anchor="Anchor.Right" Variant="@DrawerVariant.Persistent" Color="Color.Secondary">
+            <MudContainer MaxWidth="MaxWidth.False" Class="pa-8">
+                @if (_relationContracts != null)
+                {
+                    <CreateForm
+                        PrefillEntity="@relationContract.PrefillEntity"
+                        PrefillEntityParam="@relationContract.PrefillEntityParam"
+                        IsInDrawer="@true"
+                        Table="@relationContract.Table"
+                        Context="@relationContract.Context"
+                        Columns="@relationContract.Columns"
+                        InsideRelations="@relationContract.InsideRelations"
+                        CancelLabel="Back"
+                        OnCancelClb="@(() => CloseRelationDrawer(relationContract))"
+                        OnSubmitClb="@(createdEntity => OnRelationCreated(createdEntity, relationContract))"/>
+                }
+            </MudContainer>
+        </MudDrawer>
+    }
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.False" Class="pa-8" Style="min-height: calc(100vh - var(--mud-appbar-height))">
+            <ErrorBoundary @ref="errorBoundary">
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent>
+                    <MudAlert Severity="Severity.Error">
+                        An error has occurred. This application may no longer respond until reloaded.
+                    </MudAlert>
+                </ErrorContent>
+            </ErrorBoundary>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+
+    private List<BreadcrumbItem> _items = new()
+    {
+        new BreadcrumbItem("", href: "#", icon: Icons.Material.Filled.Home),
+    };
+
+    private bool _menuDrawerOpen = true;
+    private bool _wasMenuDrawerOpen = true;
+    private bool _isRelationDrawerOpen;
+    private List<RelationDrawerContract> _relationContracts = new();
+    private ErrorBoundary? errorBoundary;
+    private Dictionary<string, string> _icons;
+    private IEnumerable<IGrouping<string?, TableOptions>> _groupedMenuItems;
+    private IOrderedEnumerable<NavGroupsOptions> _navGroups;
+
+    protected override void OnInitialized()
+    {
+        _icons = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(fi => fi.IsLiteral && !fi.IsInitOnly)
+            .Select(x => (new
+            {
+                key = x.Name,
+                value = (string)x.GetRawConstantValue()!
+            }))
+            .ToDictionary(x => x.key, x => x.value);
+
+        _groupedMenuItems = Options.Clouded.Admin.Tables.Where(i => i.InMenu).GroupBy(i => i.NavGroup);
+        _navGroups = Options.Clouded.Admin.NavGroups.Where(i => _groupedMenuItems.FirstOrDefault(x => x.Key == i.Key)?.Count() > 0).OrderBy(i => i.Order);
+
+        // todo unsubscribe in dispose
+        Bus.Subscribe<RelationDrawerContract>(RelationDrawerHandler);
+    }
+
+    private bool ShouldExpand(NavGroupsOptions navGroup)
+    {
+        var path = new Uri(NavigationManager.Uri).PathAndQuery;
+        var group = _groupedMenuItems.First(x => x.Key == navGroup.Key);
+        return group.Any((opt) => path.Contains($"/management/{opt.Table}"));
+    }
+
+    protected override void OnParametersSet()
+    {
+        errorBoundary?.Recover();
+
+        BuildBreadcrumbs();
+    }
+
+    private void BuildBreadcrumbs()
+    {
+        var route = NavigationManager.Uri;
+        var basePath = route.Split("management/")[0] + "management";
+        var path = route.Split("management/")[1];
+        var segments = path.Split("/");
+
+        _items = _items.Where(i => i.Href == "#").ToList();
+        var walkthrough = new List<string> { basePath };
+        foreach (var segment in segments)
+        {
+            walkthrough.Add(segment);
+            var currentUri = string.Join("/", walkthrough);
+            var tableOptions = Options.Clouded.Admin.Tables.FirstOrDefault(i => i.Table == segment);
+
+            if (tableOptions != null)
+            {
+                _items.Add(new BreadcrumbItem(tableOptions.Name, href: currentUri, icon: _icons.GetValueOrDefault(tableOptions.Icon)));
+            }
+            else
+            {
+                var actionInfo = segment.Split("?");
+                var action = actionInfo[0];
+
+                var title = $"{action.Capitalize()}";
+                if (actionInfo.Length > 1)
+                {
+                    var identifiers = actionInfo[1].Split("=");
+                    var identifier = string.Join(": ", identifiers);
+                    title = $"{action.Capitalize()} {identifier}";
+                }
+
+                var icon = action == "detail" ? _icons.GetValueOrDefault("Info") : _icons!.GetValueOrDefault(action.Capitalize());
+
+                _items.Add(new BreadcrumbItem(title, href: currentUri, icon: icon));
+            }
+        }
+    }
+
+    private Task RelationDrawerHandler(MessageArgs args, CancellationToken ct) => InvokeAsync(() =>
+    {
+        var message = args.GetMessage<RelationDrawerContract>();
+
+        _relationContracts.Add(message);
+
+        if (_relationContracts.Count == 1 && _menuDrawerOpen)
+        {
+            _isRelationDrawerOpen = true;
+            _wasMenuDrawerOpen = _menuDrawerOpen;
+            _menuDrawerOpen = false;
+        }
+
+        StateHasChanged();
+    });
+
+    private void MenuDrawerToggle() => _menuDrawerOpen = !_menuDrawerOpen;
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+
+    private void CloseRelationDrawer(RelationDrawerContract relationDrawerContract) => InvokeAsync(() =>
+    {
+        _relationContracts.Remove(relationDrawerContract);
+        if (_relationContracts.Count == 0)
+        {
+            _isRelationDrawerOpen = false;
+            _menuDrawerOpen = _wasMenuDrawerOpen;
+        }
+
+        StateHasChanged();
+    });
+
+    private void CloseRelationDrawer() => InvokeAsync(() =>
+    {
+        _relationContracts = new List<RelationDrawerContract>();
+        _isRelationDrawerOpen = false;
+        _menuDrawerOpen = _wasMenuDrawerOpen;
+        StateHasChanged();
+    });
+
+    private void OnRelationCreated(DataSourceDictionary dataSourceDictionary, RelationDrawerContract relationDrawerContract)
+    {
+        Bus.Publish(new CreatedRelationContract
+        {
+            ComponentId = relationDrawerContract.ComponentId,
+            CreatedEntity = dataSourceDictionary
+        });
+
+        CloseRelationDrawer(relationDrawerContract);
+    }
+
+}

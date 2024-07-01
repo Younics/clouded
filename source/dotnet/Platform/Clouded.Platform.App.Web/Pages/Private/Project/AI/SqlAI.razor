@@ -1,0 +1,235 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Platform.App.Web.Services.AI
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Core.DataSource.Api
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/ai/sql"
+@inject ISqlAIService SqlAIService
+@inject IDbContextResolver DbContextResolver
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>@Project.Name | AI - SQL</PageTitle>
+
+<MudGrid Spacing="4">
+    <MudItem xs="12">
+        <MudTabs 
+            Elevation="2"
+            ApplyEffectsToContainer="true"
+            PanelClass="pa-6"
+            @bind-ActivePanelIndex="_activePanelIndex">
+            <MudTabPanel Text="Datasource">
+                <MudGrid Spacing="4">
+                    <MudItem xs="12">
+                        <MudSelect
+                            T="long?"
+                            Value="_selectedDataSourceId"
+                            ValueChanged="DataSourceSelected"
+                            Label="DataSource"
+                            Required="true"
+                            Variant="Variant.Outlined"
+                            AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var datasource in _dataSources)
+                            {
+                                <MudSelectItem Value="@((long?) datasource.Id)">@datasource.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField
+                            T="string"
+                            Variant="Variant.Outlined"
+                            Label="Input"
+                            Required="true"
+                            Lines="20"
+                            @bind-Value="_input"/>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+            <MudTabPanel Text="Raw Schema">
+                <MudGrid Spacing="4">
+                    <MudItem xs="12">
+                        <MudSelect
+                            T="DatabaseType"
+                            Variant="Variant.Outlined"
+                            AnchorOrigin="Origin.BottomCenter"
+                            Label="Database type"
+                            Required="true"
+                            For="@(() => _type)"
+                            @bind-Value="_type">
+                            @foreach (DatabaseType type in Enum.GetValues(typeof(DatabaseType)))
+                            {
+                                <MudSelectItem Value="@type">@type</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField
+                            T="string"
+                            Variant="Variant.Outlined"
+                            Label="Input"
+                            Required="true"
+                            Lines="20"
+                            @bind-Value="_input"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField
+                            T="string"
+                            Variant="Variant.Outlined"
+                            Label="SQL Schema"
+                            Required="true"
+                            Lines="20"
+                            @bind-Value="_schema"/>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        </MudTabs>
+    </MudItem>
+    
+    <MudItem xs="12">
+        <MudTextField
+            T="string"
+            Variant="Variant.Outlined"
+            Label="Output"
+            ReadOnly="true"
+            Lines="10"
+            @bind-Value="_output"
+        />
+    </MudItem>
+    
+    <MudItem Class="d-flex justify-between" xs="12">
+        <MudButton
+            HtmlTag="a"
+            Href="@($"/projects/{ProjectId}")"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary">
+            Cancel
+        </MudButton>
+
+        <MudButton
+            ButtonType="ButtonType.Submit"
+            Class="ml-auto"
+            Color="Color.Tertiary"
+            StartIcon="@Icons.Material.Filled.Check"
+            Variant="Variant.Filled"
+            Disabled="@_loading"
+            OnClick="Generate">
+            Generate
+        </MudButton>
+    </MudItem>
+</MudGrid>
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+    
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private int _activePanelIndex;
+    
+    private IEnumerable<DataSourceEntity> _dataSources = Array.Empty<DataSourceEntity>();
+    private long? _selectedDataSourceId;
+    private DatabaseType? _selectedDataSourceType;
+    private string? _selectedDataSourceSchema;
+
+    private DatabaseType _type;
+    private string? _schema;
+    private string? _input;
+    private string? _output;
+
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dataSources = await DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAll<DataSourceEntity>()
+            .Where(x => x.ProjectId == Project.Id)
+            .ToListAsync();
+    }
+
+    private async Task DataSourceSelected(long? id)
+    {
+        _selectedDataSourceId = id;
+        _selectedDataSourceType = null;
+        _selectedDataSourceSchema = null;
+        
+        if (id == null)
+            return;
+
+        var datasource = _dataSources.First(x => x.Id == id);
+        
+        // TODO: Better loading for schema extraction [START]
+
+        _loading = true;
+
+        var datasourceContext = new Context(new Connection
+        {
+            Type = datasource.Configuration.Type,
+            Server = datasource.Configuration.Server,
+            Port = datasource.Configuration.Port,
+            Username = datasource.Configuration.Username,
+            Password = datasource.Configuration.Password,
+            Database = datasource.Configuration.Database
+        });
+        
+        _selectedDataSourceType = datasource.Configuration.Type;
+        _selectedDataSourceSchema = await datasourceContext.GetDatabaseSchema();
+        
+        _loading = false;
+        
+        // TODO: Better loading for schema extraction [END]
+    }
+
+    private async Task Generate()
+    {
+        _output = null;
+        
+        try
+        {
+            _loading = true;
+
+            // Datasource
+            if (_activePanelIndex == 0)
+            {
+                if (_selectedDataSourceId == null || _selectedDataSourceType == null || _selectedDataSourceSchema == null || _input == null)
+                {
+                    Snackbar.Add("All fields must be filled", Severity.Error);
+                    return;
+                }
+                
+                _output = await SqlAIService.Generate
+                (
+                    _selectedDataSourceType.Value,
+                    _selectedDataSourceSchema,
+                    _input, 
+                    CancellationToken
+                );
+            }
+            // Raw schema
+            else
+            {
+                if (_schema == null || _input == null)
+                {
+                    Snackbar.Add("All fields must be filled", Severity.Error);
+                    return;
+                }
+                
+                _output = await SqlAIService.Generate(_type, _schema, _input, CancellationToken);
+            }
+
+            Snackbar.Add("Success", Severity.Success);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Error, try again.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

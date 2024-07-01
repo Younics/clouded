@@ -1,0 +1,174 @@
+@page "/management/roles/{RoleId}"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IRoleDataSource RoleDataSource
+@inject IPermissionDataSource PermissionDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Update permission</MudText>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-2">
+                <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Role attributes</MudText>
+                <GenericFields
+                  TDictionary="RoleDictionary"
+                    Columns="_roleColumns"
+                    IdColumnName="@Options.Clouded.Auth.Identity.Role!.ColumnId"
+                    @bind-Data="_role"/>
+            </MudPaper>
+        </MudItem>
+
+        @if (Options.Clouded.Auth.Identity.Permission != null)
+        {
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-2">
+                    <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Permissions</MudText>
+                    <PermissionManager
+                        IdKey="@Options.Clouded.Auth.Identity.Permission!.ColumnId"
+                        IdentityKey="@Options.Clouded.Auth.Identity.Permission!.ColumnIdentity"
+                        Permissions="@_permissions"
+                        @bind-SelectedPermissions="_rolePermissions"/>
+                </MudPaper>
+            </MudItem>
+        }
+
+        <MudItem Class="d-flex justify-between" xs="12">
+            <MudButton
+                HtmlTag="a"
+                OnClick="@(() => NavigationManager.NavigateTo("/management/roles"))"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <div class="ml-auto">
+                <MudButton
+                    OnClick="Delete"
+                    StartIcon="@Icons.Material.Filled.DeleteForever"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Delete
+                </MudButton>
+                <MudButton
+                    OnClick="Update"
+                    StartIcon="@Icons.Material.Filled.Check"
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary"
+                    Class="ml-auto">
+                    Update
+                </MudButton>
+            </div>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+
+    [Parameter]
+    public string? RoleId { get; set; }
+
+    private bool _initiallyLoaded;
+
+    private IEnumerable<PermissionDictionary> _permissions = Array.Empty<PermissionDictionary>();
+
+    private IEnumerable<ColumnResult> _roleColumns = null!;
+    private RoleDictionary _role = new();
+    private IEnumerable<PermissionDictionary> _rolePermissions = Array.Empty<PermissionDictionary>();
+
+
+    protected override void OnInitialized()
+    {
+        _roleColumns = RoleDataSource.GetEntityColumns();
+        _role = RoleDataSource.EntityFindById(RoleId);
+
+        if (Options.Clouded.Auth.Identity.Permission != null)
+        {
+            _permissions = PermissionDataSource.Entities();
+            _rolePermissions = RoleDataSource.RolePermissions(RoleId);
+        }
+
+        _initiallyLoaded = true;
+    }
+
+    private void Update()
+    {
+    // Permissions
+        if (Options.Clouded.Auth.Identity.Permission != null)
+        {
+            var rolePreviousPermissions = RoleDataSource
+                .RolePermissions(RoleId)
+                .ToArray();
+
+            var rolePermissionIdsToBeRemoved = rolePreviousPermissions
+                .Where
+                (
+                    previousPermission =>
+                        _rolePermissions.All
+                            (
+                                permission => !permission.Id.Equals(previousPermission.Id)
+                            )
+                )
+                .Select
+                (
+                    permission => permission.Id
+                )
+                .ToArray();
+
+            if (rolePermissionIdsToBeRemoved.Any())
+            {
+                RoleDataSource.RolePermissionsRemove
+                    (
+                        RoleId,
+                        rolePermissionIdsToBeRemoved
+                    );
+            }
+
+            var rolePermissionIdsToBeAdded = _rolePermissions
+                .Where
+                (
+                    permission =>
+                        rolePreviousPermissions.All
+                            (
+                                previousPermission => !previousPermission.Id.Equals(permission.Id)
+                            )
+                )
+                .Select
+                (
+                    permission => permission.Id
+                )
+                .ToArray();
+
+            if (rolePermissionIdsToBeAdded.Any())
+            {
+                RoleDataSource.RolePermissionsAdd
+                    (
+                        RoleId,
+                        rolePermissionIdsToBeAdded
+                    );
+            }
+        }
+
+        RoleDataSource.EntityUpdate(RoleId, _role);
+
+        Snackbar.Add("Updated", Severity.Success);
+    }
+
+    private void Delete()
+    {
+        RoleDataSource.EntityDelete(RoleId);
+
+        Snackbar.Add("Deleted", Severity.Success);
+        NavigationManager.NavigateTo("/management/roles");
+    }
+
+}

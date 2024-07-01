@@ -1,0 +1,125 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using AutoMapper
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Models.Dtos.Hub
+@using Clouded.Platform.Models.Dtos.Provider.Admin
+@using Clouded.Shared
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/admin_panels/{AdminProviderId}"
+@inject IDbContextResolver DbContextResolver
+@inject IAdminProviderService AdminProviderService
+@inject IMapper Mapper
+@inject NavigationManager NavigationManager
+@inject ApplicationOptions Options
+@inject ISnackbar Snackbar
+@inject IStorageService StorageService
+
+<PageTitle>@Project.Name | Admin panel - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <AdminForm ProviderHub="_providerHub" Title="Admin panel: " Model="@Input" ProjectId="@ProjectId" IsCreate="@false" OnValidSubmit="@OnValidSubmit"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string AdminProviderId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private AdminProviderInput? Input { get; set; }
+
+    private HubConnection _providerHub;
+    private CloudedDbContext _dbContext = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver
+            .UseScopedContext<CloudedDbContext>();
+        
+        var adminProviderEntity = await _dbContext
+            .GetAsync<AdminProviderEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(AdminProviderId),
+                CancellationToken
+            );
+
+
+        if (adminProviderEntity != null)
+        {
+            var input = Mapper.Map<AdminProviderInput>(adminProviderEntity);
+            input.UserAccess = input.UserAccess.Select(usr =>
+            {
+                usr.Password = usr.Password.Decrypt(Options.Clouded.Database.CloudedConnection.EncryptionKey);
+                return usr;
+            }).ToList();
+            input.NavGroups = input.NavGroups.OrderBy(x => x.Order);
+            
+            Input = input;
+
+            _providerHub = AdminProviderService.GetProviderHub(StorageService);
+
+            _providerHub.On<HubProviderProcessingOutput>
+                (
+                    nameof(HubProviderProcessingOutput),
+                    output =>
+                    {
+                        if (output.Success)
+                        {
+                            if (output.DeployedAt != null)
+                            {
+                                adminProviderEntity.DeployedAt = output.DeployedAt;
+                            }
+
+                            Snackbar.Add(output.SuccessMessage, Severity.Success);
+                        }
+                        else
+                        {
+                            Snackbar.Add(output.ErrorMessage, Severity.Error);
+                        }
+
+                        InvokeAsync(StateHasChanged);
+                    }
+                );
+
+            _providerHub.On<HubProviderUpdateStatus>
+                (
+                    nameof(HubProviderUpdateStatus),
+                    output =>
+                    {
+                        if (output.DeployAt != null && DateTime.Compare((DateTime)adminProviderEntity.DeployedAt, (DateTime)output.DeployAt) == 0)
+                        {
+                            adminProviderEntity.Status = output.Status;
+
+                            InvokeAsync(StateHasChanged);
+                        }
+                    }
+                );
+
+            await _providerHub.StartAsync();
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+        var adminProvider = await AdminProviderService.UpdateAsync(Input, cancellationToken: CancellationToken);
+
+    //TODO: error handling
+
+    // if (dataSource.Id != null)
+    // {
+        Snackbar.Add("Admin panel updated", Severity.Success);
+        NavigationManager.NavigateTo($"/projects/{ProjectId}/admin_panels/{AdminProviderId}");
+    // }
+    // else
+    // {
+    //     Snackbar.Add("Daco se pokazilo");
+    // }
+    }
+}

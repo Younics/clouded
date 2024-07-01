@@ -1,0 +1,37 @@
+﻿@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits LayoutComponentBase
+@inject IAuthService AuthService
+
+@if (_isAuthenticated != null)
+{
+    @if (_isAuthenticated.Value)
+    {
+        <Redirect To="/"/>
+    }
+    else
+    {
+        <MudLayout>
+            <div Class="d-flex justify-center align-center mud-background" Style="height:100vh;">
+                <div style="max-width: 30%; border-radius: 0 22px 22px 0" class="d-flex flex-1 justify-center align-center mud-tertiary mud-height-full mud-elevation-10">
+                    <img style="max-width: 40%" alt="logo" src="assets/intro.png" class="object-cover"/>
+                </div>
+                <div Class="d-flex flex-grow-1">
+                    <MudItem xs="10" md="6" lg="4" style="margin: 0 20% 0 20%">
+                        @Body
+                    </MudItem>
+                </div>
+            </div>
+        </MudLayout>
+    }
+}
+
+@code {
+
+    private bool? _isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isAuthenticated = await AuthService.IsAuthenticatedAsync();
+    }
+    
+}

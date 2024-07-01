@@ -1,0 +1,814 @@
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Shared
+@using MimeDetective
+@using MimeDetective.Definitions
+@using MimeDetective.Definitions.Licensing
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Core.DataSource.Shared.Input
+@using Clouded.Admin.Provider.Extensions
+@using Clouded.Admin.Provider.Contexts
+@using Clouded.Admin.Provider.Contracts
+@using Clouded.Admin.Provider.DataSources.Interfaces
+@using BlazorComponentBus
+@using Blazored.LocalStorage
+@using Clouded.Core.DataSource.Api.Helpers
+@using Clouded.Core.DataSource.Shared.Enums
+@using Clouded.Shared.Enums
+@inherits CancellableComponentBase
+@inject ApplicationOptions ApplicationOptions
+@inject ComponentBus Bus
+@inject ILocalStorageService LocalStorage
+@inject IUserSettingsDataSource UserSettingsDataSource
+@inject ApplicationOptions Options
+@inject IWebHostEnvironment Environment
+@inject IJSRuntime Js
+@inject ISnackbar Snackbar
+
+
+@inject NavigationManager NavigationManager
+
+@if (Visible)
+{
+    @if (Relation != null)
+    {
+        <MudStack AlignItems="AlignItems.Center" Row="@true">
+            @if (!ReadonlyField)
+            {
+                <MudButton OnClick="OpenCreateRelation">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" Title="Create"/>
+                </MudButton>
+            }
+            <MudButton Disabled="@(Value == null || _relationDetailHref == "")" Href="@(_relationDetailHref)" Target="@(IsInDrawer ? "_blank" : "_self")">
+                <MudIcon Icon="@Icons.Material.Filled.Search" Title="Detail"/>
+            </MudButton>
+
+            @if (ReadonlyField)
+            {
+                var value = ResolveColumnValue<DataSourceDictionary?>();
+                <MudTextField
+                    T="string"
+                    Variant="Variant.Outlined"
+                    ReadOnly="@true"
+                    Label="@ColumnOptions.Name"
+                    Text="@string.Join("\n", _targetColumnNamesSelected.Select(name => value?.ContainsKey(name) ?? false ? value[name] : ""))"
+                    Lines="@(Math.Min(_targetColumnNamesSelected.Count(), 3))"/>
+            }
+            else
+            {
+                <MudAutocomplete T="DataSourceDictionary?"
+                                 Validation="@(!Column.IsNullable ? ObjectFieldValidator.Validation : null)"
+                                 Immediate="@true"
+                                 @ref="RelationAutocomplete"
+                                 Placeholder="Choose an option"
+                                 HelperText="@(_autocompleteMinimumChars > 0 ? $"Search starts at {_autocompleteMinimumChars} chars" : null)"
+                                 HelperTextOnFocus="@true"
+                                 Value="ResolveColumnValue<DataSourceDictionary?>()"
+                                 Variant="Variant.Outlined"
+                                 Label="@ColumnOptions.Name"
+                                 ReadOnly="@ReadonlyField"
+                                 ShowProgressIndicator="@true"
+                                 SearchFunc="RelationSearchFunc"
+                                 ResetValueOnEmptyText="@true"
+                                 CoerceText="@false"
+                                 Clearable="@(!ReadonlyField)"
+                                 MinCharacters="@_autocompleteMinimumChars"
+                                 DebounceInterval="500"
+                                 CoerceValue="@false"
+                                 ValueChanged="@SetValue"
+                                 AdornmentIcon="@(ReadonlyField ? null : Icons.Material.Filled.Search)"
+                                 ToStringFunc="@(e => e == null || !e.Any() ? null : string.Join(", ", _targetColumnNamesSelected.Select(name => e[name])))">
+                    <ItemTemplate Context="e">
+                        @string.Join(", ", _targetColumnNamesSelected.Select(name => e[name]))
+                    </ItemTemplate>
+                    <ItemSelectedTemplate Context="e">
+                        @string.Join(", ", _targetColumnNamesSelected.Select(name => e[name]))
+                    </ItemSelectedTemplate>
+                    <MoreItemsTemplate>
+                        <MudText Align="Align.Left" Class="px-4 py-1">
+                            Only the first @(_autocompleteLimit) items are shown
+                        </MudText>
+                    </MoreItemsTemplate>
+                    <NoItemsTemplate>
+                        <MudText Align="Align.Left" Class="px-4 py-1">
+                            No items found
+                        </MudText>
+                    </NoItemsTemplate>
+                </MudAutocomplete>
+            }
+            <MudSelect
+                T="string"
+                Placeholder="Choose an option"
+                Variant="Variant.Outlined"
+                Label=@($"{ColumnOptions.Name} - display fields")
+                MultiSelection="@true"
+                ValueChanged="ColumnNamesChanged"
+                @bind-SelectedValues="_targetColumnNamesSelected">
+
+                @foreach (var targetColumn in _targetColumns.OnlySelectableFields(_relationTableOptions!))
+                {
+                    <MudSelectItem Value="targetColumn.Name">@targetColumn.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudStack>
+    }
+    else if (Column == null && FormType == FormType.Read)
+    {
+        @if (ColumnOptions.VirtualType == EVirtualColumnType.Image)
+        {
+            <MudStack Row="@true">
+                <div>
+                    @ColumnOptions.Name
+                </div>
+                <div style="width: 25%; max-width: 200px; position: relative">
+                    @if (Value != null)
+                    {
+                        <MudImage onerror="this.replaceWith('-')" Src="@((string)Value)" id="@_componentUid" Fluid="@true" Alt="@ColumnOptions.Name" Elevation="25" Class="rounded-lg" loading="lazy"/>
+                    }
+                    else
+                    {
+                        <div>-</div>
+                    }
+                </div>
+            </MudStack>
+        }
+        else if (ColumnOptions.VirtualType == EVirtualColumnType.String)
+        {
+            <MudTextField
+                T="string"
+                Variant="Variant.Outlined"
+                Label="@ColumnOptions.Name"
+                ReadOnly="@true"
+                Value="@((string)Value)"/>
+        }
+    }
+    else
+    {
+        @if (Column != null && Column.IsAutoIncrement && !ReadonlyField && !ForceReadonly)
+        {
+            <MudTextField
+                T="string"
+                Placeholder="Generated"
+                Variant="Variant.Outlined"
+                Label="@ColumnOptions.Name"
+                ReadOnly="@true"/>
+        }
+        else
+        {
+            @switch (Column?.Type)
+            {
+                case EColumnType.Boolean:
+                    if (Column?.IsNullable == true)
+                    {
+                        <MudCheckBox
+                            T="bool?"
+                            TriState="@true"
+                            Color="Color.Primary"
+                            Label="@ColumnOptions.Name"
+                            ReadOnly="@ReadonlyField"
+                            Checked="ResolveColumnValue<bool>()"
+                            CheckedChanged="b => SetValue(b)"/>
+                    }
+                    else
+                    {
+                        <MudSwitch
+                            T="bool"
+                            Color="Color.Primary"
+                            Label="@ColumnOptions.Name"
+                            ReadOnly="@ReadonlyField"
+                            Checked="ResolveColumnValue<bool>()"
+                            CheckedChanged="b => SetValue(b)"/>
+                    }
+
+                    break;
+                case EColumnType.Char:
+                    <MudTextField
+                        T="char"
+                        Validation="@StringFieldValidator.Validation"
+                        Immediate="@true"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        ReadOnly="ReadonlyField"
+                        Value="ResolveColumnValue<char>()"
+                        ValueChanged="c => SetValue(c)"/>
+                    break;
+                case EColumnType.Varchar:
+                case EColumnType.Text:
+                    @switch (ColumnOptions.Type)
+                    {
+                        case ETableColumnType.Password:
+                            <PasswordField
+                                Validation="@StringFieldValidator.Validation"
+                                Immediate="@true"
+                                Value="ResolveColumnValue<string>()"
+                                ValueChanged="SetValue"
+                                ReadOnly="ReadonlyField"
+                                Label="@ColumnOptions.Name"
+                                Variant="Variant.Outlined"/>
+                            break;
+                        case ETableColumnType.Email:
+                            <MudTextField
+                                Validation="@StringFieldValidator.Validation"
+                                Immediate="@true"
+                                T="string"
+                                Variant="Variant.Outlined"
+                                Label="@ColumnOptions.Name"
+                                ReadOnly="ReadonlyField"
+                                InputType="InputType.Email"
+                                Value="ResolveColumnValue<string>()"
+                                ValueChanged="SetValue"/>
+                            break;
+                        default:
+                            <MudTextField
+                                Validation="@StringFieldValidator.Validation"
+                                Immediate="@true"
+                                T="string"
+                                Variant="Variant.Outlined"
+                                Label="@ColumnOptions.Name"
+                                ReadOnly="ReadonlyField"
+                                Value="ResolveColumnValue<string>()"
+                                ValueChanged="SetValue"/>
+                            break;
+                    }
+
+                    break;
+                case EColumnType.SmallSerial:
+                    <MudNumericField
+                        T="short"
+                        Validation="@NumericFieldValidator.Validation"
+                        Immediate="@true"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        Step="1"
+                        ReadOnly="ReadonlyField"
+                        Value="ResolveColumnValue<short>()"
+                        ValueChanged="i => SetValue(i)"/>
+                    break;
+                case EColumnType.Serial:
+                case EColumnType.Int:
+                    <MudNumericField
+                        T="int"
+                        Validation="@NumericFieldValidator.Validation"
+                        Immediate="@true"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        Step="1"
+                        ReadOnly="ReadonlyField"
+                        Value="ResolveColumnValue<int>()"
+                        ValueChanged="i => SetValue(i)"/>
+                    break;
+                case EColumnType.BigSerial:
+                case EColumnType.Long:
+                    <MudNumericField
+                        T="long"
+                        Validation="@NumericFieldValidator.Validation"
+                        Immediate="@true"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        Step="1L"
+                        ReadOnly="ReadonlyField"
+                        Value="ResolveColumnValue<long>()"
+                        ValueChanged="l => SetValue(l)"/>
+                    break;
+                case EColumnType.Double:
+                    <MudNumericField
+                        T="float"
+                        Validation="@NumericFieldValidator.Validation"
+                        Immediate="@true"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        Step="0.1F"
+                        ReadOnly="ReadonlyField"
+                        Value="ResolveColumnValue<float>()"
+                        ValueChanged="f => SetValue(f)"/>
+                    break;
+                case EColumnType.Decimal:
+                    <MudNumericField
+                        T="decimal"
+                        Validation="@NumericFieldValidator.Validation"
+                        Immediate="@true"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        Step="0.1M"
+                        ReadOnly="ReadonlyField"
+                        Value="ResolveColumnValue<decimal>()"
+                        ValueChanged="d => SetValue(d)"/>
+                    break;
+                case EColumnType.Bytea:
+                    @switch (ColumnOptions.Type)
+                    {
+                        case ETableColumnType.Image:
+                            <MudStack Row="@true">
+                                <MudText>
+                                    @ColumnOptions.Name
+                                </MudText>
+                                @if (Value != null)
+                                {
+                                    <div style="width: 25%; max-width: 200px; position: relative">
+                                        <MudImage onerror="this.replaceWith('-')" Src="@ColumnHelper.ToImageSrc(Value)" id="@_componentUid" Fluid="@true" Alt="@ColumnOptions.Name" Elevation="25" Class="rounded-lg" loading="lazy"/>
+
+                                        @if (FormType != FormType.Read)
+                                        {
+                                            <div>
+                                                <MudTooltip Arrow="@true" Text="Clear">
+                                                    <MudIconButton
+                                                        Style="position: absolute; top: 5px; right: 5px"
+                                                        HtmlTag="button"
+                                                        Variant="Variant.Filled"
+                                                        Color="Color.Secondary"
+                                                        @onclick="ClearFile"
+                                                        Icon="@Icons.Material.Filled.Clear">
+                                                    </MudIconButton>
+                                                </MudTooltip>
+                                            </div>
+                                        }
+
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>-</div>
+                                }
+
+                                @if (FormType != FormType.Read)
+                                {
+                                    <MudFileUpload
+                                        Class="mt-0"
+                                        Accept=".png, .jpg, .jpeg"
+                                        T="IBrowserFile"
+                                        FilesChanged="SetFile"
+                                        @ref="FileUpload">
+                                        <ButtonTemplate>
+                                            <MudButton HtmlTag="label"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Image"
+                                                       for="@context">
+                                                Load picture
+                                            </MudButton>
+                                        </ButtonTemplate>
+                                        <SelectedTemplate>
+                                            @if (context != null)
+                                            {
+                                                <MudText>@context.Name</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText>No selected file</MudText>
+                                            }
+                                        </SelectedTemplate>
+                                    </MudFileUpload>
+                                }
+                            </MudStack>
+                            break;
+                        default:
+                            <MudStack Row="@true">
+                                <MudText>
+                                    @ColumnOptions.Name
+                                </MudText>
+                                @if (Value != null)
+                                {
+                                    <div>
+                                        <MudTooltip Arrow="@true" Text="Download">
+                                            <MudIconButton
+                                                OnClick="@DownloadFile"
+                                                Color="Color.Tertiary"
+                                                Icon="@Icons.Material.Filled.Download"/>
+                                        </MudTooltip>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>-</div>
+                                }
+
+                                @if (FormType != FormType.Read)
+                                {
+                                    @if (Value != null)
+                                    {
+                                        <div>
+                                            <MudTooltip Arrow="@true" Text="Clear">
+                                                <MudIconButton HtmlTag="button"
+                                                               Variant="Variant.Filled"
+                                                               Color="Color.Secondary"
+                                                               @onclick="ClearFile"
+                                                               Icon="@Icons.Material.Filled.Clear">
+                                                </MudIconButton>
+                                            </MudTooltip>
+                                        </div>
+                                    }
+
+                                    <MudFileUpload
+                                        Class="mt-0"
+                                        T="IBrowserFile"
+                                        FilesChanged="SetFile"
+                                        @ref="FileUpload">
+                                        <ButtonTemplate>
+                                            <MudButton HtmlTag="label"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                                                       for="@context">
+                                                Load file
+                                            </MudButton>
+                                        </ButtonTemplate>
+                                        <SelectedTemplate>
+                                            @if (context != null)
+                                            {
+                                                <MudText>@context.Name</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText>No selected file</MudText>
+                                            }
+                                        </SelectedTemplate>
+                                    </MudFileUpload>
+                                }
+                            </MudStack>
+                            break;
+                    }
+
+                    break;
+                case EColumnType.Time:
+                    <MudTimePicker
+                        T="TimeSpan?"
+                        Validation="@StringFieldValidator.Validation"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        Editable="true"
+                        ReadOnly="ReadonlyField"
+                        Time="ResolveColumnValue<TimeSpan?>()"
+                        TimeChanged="timespan => SetValue(timespan)">
+                        <PickerActions>
+                            <MudButton Class="mr-auto align-self-start" OnClick="@(() => _timePicker!.Clear())">Clear</MudButton>
+                        </PickerActions>
+                    </MudTimePicker>
+                    break;
+                case EColumnType.Date:
+                    <MudDatePicker
+                        T="DateTime?"
+                        Validation="@StringFieldValidator.Validation"
+                        Variant="Variant.Outlined"
+                        Label="@ColumnOptions.Name"
+                        DateFormat="dd.MM.yyyy"
+                        ReadOnly="ReadonlyField"
+                        Date="ResolveColumnValue<DateTime?>()"
+                        DateChanged="datetime => SetValue(datetime)">
+                        <PickerActions>
+                            <MudButton Class="mr-auto align-self-start" OnClick="@(() => _datePicker!.Clear())">Clear</MudButton>
+                        </PickerActions>
+                    </MudDatePicker>
+                    break;
+                case EColumnType.DateTime:
+                    <MudStack Row="@true">
+                        <MudDatePicker
+                            T="DateTime?"
+                            Variant="Variant.Outlined"
+                            Label="@ColumnOptions.Name"
+                            DateFormat="dd.MM.yyyy"
+                            ReadOnly="ReadonlyField"
+                            Date="ResolveColumnValue<DateTime?>()"
+                            DateChanged="datetime => SetValue(DateTimeChangeTime(datetime, ((DateTime?)Value ?? DateTime.UtcNow).TimeOfDay))">
+                            <PickerActions>
+                                <MudButton Class="mr-auto align-self-start" OnClick="@(() => _datePicker!.Clear())">Clear</MudButton>
+                            </PickerActions>
+                        </MudDatePicker>
+                        <MudTimePicker
+                            T="TimeSpan?"
+                            Variant="Variant.Outlined"
+                            Editable="true"
+                            ReadOnly="ReadonlyField"
+                            Time="ResolveColumnValue<DateTime?>()?.TimeOfDay"
+                            TimeChanged="timespan => SetValue(DateTimeChangeTime((DateTime?)Value, timespan))">
+                            <PickerActions>
+                                <MudButton Class="mr-auto align-self-start" OnClick="@(() => _timePicker!.Clear())">Clear</MudButton>
+                            </PickerActions>
+                        </MudTimePicker>
+                    </MudStack>
+                    break;
+                case EColumnType.Unsupported:
+                    <MudAlert Severity="Severity.Warning">Unsupported column type for column: @Column.Name from @($"{TableOptions.Schema}.{TableOptions.Table}")</MudAlert>
+                    break;
+            }
+        }
+    }
+}
+
+
+@code {
+
+    [Parameter] public required FormType FormType { get; set; }
+
+    [Parameter] public required AdminContext Context { get; set; }
+
+    [Parameter] public required TableOptions TableOptions { get; set; }
+
+    [Parameter] public required TableColumnOptions ColumnOptions { get; set; }
+
+    [Parameter] public ColumnResult? Column { get; set; }
+
+    [Parameter] public RelationResult? Relation { get; set; }
+
+    [Parameter] public object? Value { get; set; }
+
+    [Parameter] public bool IsInDrawer { get; set; }
+
+    [Parameter] public bool ForceReadonly { get; set; }
+
+    [Parameter] public EventCallback<object?>? ValueChanged { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    private MudAutocomplete<DataSourceDictionary?>? RelationAutocomplete { get; set; }
+    private MudFileUpload<IBrowserFile?>? FileUpload { get; set; }
+
+    private bool Visible =>
+        FormType == FormType.Read ? ColumnOptions.Detail.Visible : ColumnOptions.Create.Visible;
+
+    private IEnumerable<string> _targetColumnNamesSelected = Array.Empty<string>();
+    private IEnumerable<ColumnResult> _targetColumns = Array.Empty<ColumnResult>();
+    private readonly int _autocompleteLimit = 15;
+    private readonly int _autocompleteMinimumChars = 0;
+    private string _componentUid = Guid.NewGuid().ToString();
+
+    private string _relationDetailHref = "";
+    private bool ReadonlyField => ForceReadonly || FormType == FormType.Read || ColumnOptions.Create.Readonly;
+    private TableOptions? _relationTableOptions;
+    private string? _trustedFileNameForFileStorage;
+    private MudDatePicker? _datePicker;
+    private MudTimePicker? _timePicker;
+
+    private FluentValueValidator<string?> StringFieldValidator => new FluentValueValidator<string?>().StringValueValidator(Column, ColumnOptions);
+    private FluentValueValidator<float?> NumericFieldValidator => new FluentValueValidator<float?>().NumericValueValidator(Column, ColumnOptions);
+    private FluentValueValidator<DataSourceDictionary?> ObjectFieldValidator => new FluentValueValidator<DataSourceDictionary?>().ObjectValueValidator(Column, ColumnOptions);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Relation == null)
+            return;
+
+        var tables = Options.Clouded.Admin.Tables.ToList();
+        _targetColumns = Context.GetColumns(Relation.TargetSchema, Relation.TargetTable);
+
+        var authState = await AuthenticationStateTask;
+        _targetColumnNamesSelected = await Relation.LoadRelationConfig(authState.User.Identity.Name, UserSettingsDataSource);
+
+        _targetColumns = Context.GetColumns(Relation.TargetSchema, Relation.TargetTable);
+        _relationTableOptions = tables.FirstOrDefault(x => x.Table == Relation.TargetTable && x.Schema == Relation.TargetSchema)
+                                ?? BuildHiddenFkTableOptions();
+
+        if (Value != null && ((Value as DataSourceDictionary)!).Any())
+        {
+            BuildDetailHref();
+        }
+
+        Bus.Subscribe<CreatedRelationContract>(RelationCreated);
+    }
+
+    protected override void DisposeComponent()
+    {
+        Bus.UnSubscribe<CreatedRelationContract>(RelationCreated);
+
+        if (_trustedFileNameForFileStorage != null)
+        {
+            // already uploaded tmp file
+            var alreadyUploadedFilePath = FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage);
+            File.Delete(alreadyUploadedFilePath);
+        }
+    }
+
+    private void RelationCreated(MessageArgs args) => InvokeAsync(() =>
+    {
+        var message = args.GetMessage<CreatedRelationContract>();
+
+        if (message.ComponentId != _componentUid)
+        {
+            return;
+        }
+
+        SetValue(message.CreatedEntity);
+        RelationAutocomplete?.SelectOption(message.CreatedEntity);
+        RelationAutocomplete?.ForceRender(true);
+        StateHasChanged();
+    });
+
+    private void OpenCreateRelation()
+    {
+        var insideRelations = Context.GetInsideRelations(Relation!.TargetSchema, Relation.TargetTable);
+        var relationTable = ApplicationOptions.Clouded.Admin.Tables.ToList().FirstOrDefault(x => x.Table == Relation.TargetTable)
+                            ?? BuildHiddenFkTableOptions();
+
+        Bus.Publish(new RelationDrawerContract
+        {
+            IsOpen = true,
+            Name = ColumnOptions.Name,
+            Context = Context,
+            InsideRelations = insideRelations,
+            Table = relationTable,
+            Columns = _targetColumns,
+            ComponentId = _componentUid
+        });
+    }
+
+    private void ClearFile()
+    {
+        SetValue(null);
+        FileUpload.Reset();
+    }
+
+    private void SetValue(object? value)
+    {
+        Value = value;
+
+        if (Relation != null && Value != null)
+            BuildDetailHref();
+
+        ValueChanged?.InvokeAsync(Value);
+    }
+
+    private async void SetFile(IBrowserFile file)
+    {
+        if (_trustedFileNameForFileStorage != null)
+        {
+            // already uploaded tmp file
+            var alreadyUploadedFilePath = FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage);
+            File.Delete(alreadyUploadedFilePath);
+        }
+
+        _trustedFileNameForFileStorage = Path.GetRandomFileName();
+        var path = FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await using FileStream fs = new(path, FileMode.Create);
+        try
+        {
+            // max 20MB
+            await file.OpenReadStream(20000 * 1024).CopyToAsync(fs);
+        }
+        catch
+        {
+            Snackbar.Add("Maximum file size 20MB exceeded", Severity.Error);
+            File.Delete(FileHelper.GetTmpFilePath(_trustedFileNameForFileStorage));
+            _trustedFileNameForFileStorage = null;
+        }
+
+        Value = path;
+
+        ValueChanged?.InvokeAsync(Value);
+    }
+
+    private DateTime? DateTimeChangeTime(DateTime? dateTime, TimeSpan? time) =>
+        !time.HasValue ? dateTime : dateTime.ChangeTime(time.Value);
+
+    private T? ResolveColumnValue<T>()
+    {
+        if (Relation != null)
+        {
+            if (Value == null)
+            {
+                // for relation field let it be null :)
+                return default;
+            }
+
+            if (Value is not DataSourceDictionary)
+            {
+                Value = Context.SelectSingle
+                (
+                    new SelectInput
+                    {
+                        Schema = Relation.TargetSchema,
+                        Table = Relation.TargetTable,
+                        Alias = Relation.TargetTable,
+                        Where = new ConditionValueInput
+                        {
+                            Column = Relation.TargetColumn,
+                            Alias = Relation.TargetTable,
+                            Operator = EOperator.Equals,
+                            Value = Value,
+                        }
+                    }
+                );
+            }
+
+            return (T?)Value;
+        }
+
+        Value = ColumnHelper.ResolveColumnValue<T>(Column.Type, Value);
+
+        return (T?)Value;
+    }
+
+    private async void ColumnNamesChanged(string obj)
+    {
+        var authState = await AuthenticationStateTask;
+
+        Relation!.SetRelationConfig(
+            ApplicationOptions.Clouded.Admin.Auth.UserSettings,
+            authState.User.Identity!.Name!,
+            UserSettingsDataSource,
+            _targetColumnNamesSelected
+        );
+    }
+
+    private Task<IEnumerable<DataSourceDictionary>> RelationSearchFunc(string arg)
+    {
+        if (Value != null && arg == string.Join(", ", _targetColumnNamesSelected.Select(name => ((Value as DataSourceDictionary)!)[name])))
+        {
+            return Task.FromResult<IEnumerable<DataSourceDictionary>>(new List<DataSourceDictionary> { (Value as DataSourceDictionary)! });
+        }
+
+        return Task.FromResult(Context.Select
+        (
+            new SelectInput
+            {
+                Schema = Relation!.TargetSchema,
+                Table = Relation.TargetTable,
+                Alias = Relation.TargetTable,
+                Offset = 0,
+                Limit = _autocompleteLimit,
+                Where = new ConditionOrInput
+                {
+                    Conditions = _targetColumns.Where(i => EColumnTypeGroups.Textual.Contains((EColumnType)i.Type)).Select(targetCol => new ConditionValueInput
+                    {
+                        Alias = Relation.TargetTable,
+                        Column = targetCol.Name,
+                        Value = arg ?? "",
+                        Operator = EOperator.Contains,
+                        Mode = EMode.Insensitive
+                    })
+                }
+            }
+        ));
+    }
+
+    private async void DownloadFile()
+    {
+        if (Value == null)
+        {
+            return;
+        }
+
+        byte[] fileBytes;
+        if (Value is string value)
+        {
+            fileBytes = await File.ReadAllBytesAsync(value);
+        }
+        else
+        {
+            fileBytes = Value! as byte[];
+        }
+
+        var inspector = new ContentInspectorBuilder
+        {
+            Definitions = new ExhaustiveBuilder
+            {
+                UsageType = UsageType.PersonalNonCommercial
+            }.Build()
+        }.Build();
+
+        var results = inspector.Inspect(fileBytes!);
+        var resultsByFileExtension = results.ByFileExtension();
+        var fileName = "file." + resultsByFileExtension.First().Extension;
+
+        var fileStream = new MemoryStream(fileBytes!);
+        var streamRef = new DotNetStreamReference(fileStream);
+
+        await Js.InvokeVoidAsync("downloadFileFromStream", fileName, streamRef);
+    }
+
+    private void BuildDetailHref()
+    {
+        _relationDetailHref = (Value as DataSourceDictionary)!.ToEntityDetailUri(_targetColumns, $"/management/{Relation!.TargetTable}/detail");
+    }
+
+    private TableOptions BuildHiddenFkTableOptions()
+    {
+        return new TableOptions
+        {
+            Schema = Relation.TargetSchema,
+            Table = Relation.TargetTable,
+            Name = Relation.TargetTable,
+            InMenu = false,
+            NavGroup = null,
+            DataSourceId = TableOptions.DataSourceId,
+            Columns = _targetColumns.Select((x, i) => new TableColumnOptions
+            {
+                Column = x.Name,
+                Name = x.Name,
+                Order = i + 1,
+                List = new()
+                {
+                    Visible = true
+                },
+                Detail = new()
+                {
+                    Visible = true
+                },
+                Create = new()
+                {
+                    Readonly = false,
+                    Visible = true
+                },
+            })
+        };
+    }
+
+}

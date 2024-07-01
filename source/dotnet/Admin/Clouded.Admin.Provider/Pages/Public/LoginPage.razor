@@ -1,0 +1,90 @@
+@page "/login"
+@using Clouded.Admin.Provider.Services.Interfaces
+@inject IAuthService AuthService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<div Class="d-flex justify-center align-center mud-background" Style="height:100vh;">
+    <div style="max-width: 30%; border-radius: 0 22px 22px 0" class="d-flex flex-1 justify-center align-center mud-tertiary mud-height-full mud-elevation-10">
+        <img style="max-width: 40%" alt="logo" src="images/intro.png" class="object-cover"/>
+    </div>
+    <div Class="d-flex flex-grow-1">
+
+        <MudItem xs="10" md="6" lg="4" style="margin: 0 20% 0 20%">
+            <EditForm Model="@_input" OnValidSubmit="@Login">
+
+                <MudText Typo="Typo.h1" GutterBottom="true">Log In</MudText>
+
+                <MudTextField T="string" @bind-Value="@_input.Identity" Label="Email" Variant="Variant.Outlined" Class="my-6"></MudTextField>
+
+                <MudTextField @bind-Value="@_input.Password" Label="Password" Variant="Variant.Outlined" InputType="@_passwordInput" Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon" OnAdornmentClick="TogglePasswordVisibility"/>
+
+                <MudCheckBox Class="mt-4" T="bool" Color="Color.Primary" Label="Remember me"/>
+
+                <MudButton
+                    ButtonType="ButtonType.Submit"
+                    EndIcon="@Icons.Material.Filled.KeyboardArrowRight"
+                    Class="mt-8"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary"
+                    Size="Size.Large"
+                    Style="max-width: 60%"
+                    FullWidth="true">
+                    Sign In
+                </MudButton>
+            </EditForm>
+        </MudItem>
+
+    </div>
+</div>
+
+@code
+{
+    private readonly AuthInput _input = new();
+    private bool _passwordVisibility;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void TogglePasswordVisibility()
+    {
+        @if (_passwordVisibility)
+        {
+            _passwordVisibility = false;
+            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+            _passwordInput = InputType.Password;
+        }
+        else
+        {
+            _passwordVisibility = true;
+            _passwordInputIcon = Icons.Material.Filled.Visibility;
+            _passwordInput = InputType.Text;
+        }
+    }
+
+    async void Login()
+    {
+        if (_input.Identity == null || _input.Password == null)
+        {
+            //TODO: remove
+            Snackbar.Add("Please fill email and password", Severity.Error);
+            return;
+        }
+
+        var result = await AuthService.LoginAsync(_input.Identity, _input.Password);
+        if (!result)
+        {
+            Snackbar.Add("Wrong credentials!", Severity.Error);
+            return;
+        }
+        
+        NavigationManager.NavigateTo("/private", true);
+    }
+}
+
+@code {
+    private class AuthInput
+    {
+        public string? Identity { get; set; }
+        public string? Password { get; set; }
+    }
+}

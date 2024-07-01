@@ -1,0 +1,19 @@
+@using Clouded.Auth.Provider.Management.Enums
+@typeparam TDictionary
+
+<EditForm Model="@Data">
+    <DataAnnotationsValidator/>
+    <MudGrid Spacing="1">
+            @foreach (var column in Columns)
+            {
+                <MudItem xs="12">
+                    <GenericField
+                        Name="@column.Name"
+                        Mode="@(column.Name == IdColumnName ? EGenericFieldMode.View : Mode)"
+                        IsPassword="@(column.Name == PasswordColumnName)"
+                        Type="@(column.Type)"
+                        @bind-Value="Data[column.Name]"/>
+                </MudItem>
+            }
+        </MudGrid>
+</EditForm>

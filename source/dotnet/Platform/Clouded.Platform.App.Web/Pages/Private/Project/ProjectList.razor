@@ -1,0 +1,69 @@
+﻿@layout PrivateLayout
+@page "/projects"
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@inject IDbContextResolver DbContextResolver
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Projects</PageTitle>
+
+<MudGrid>
+    @foreach (var project in _projects)
+    {
+        <MudItem xs="4" sm="4">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">@project.Name</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudIconButton
+                            HtmlTag="a"
+                            Icon="@Icons.Material.Filled.Settings"
+                            Color="Color.Default"
+                            Href="@($"/projects/{project.Id}")"/>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardMedia Image="@($"https://ui-avatars.com/api/?name={project.Name}?size=250&font-size=0.33&background=random")" Height="250"/>
+                <MudCardContent>
+                    <MudText Typo="Typo.body2">@project.Description</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+<MudFab
+    Style="position: fixed; right: 24px; bottom: 24px;"
+    Color="Color.Primary"
+    StartIcon="@Icons.Material.Filled.Add"
+    Href="/projects/create"/>
+
+@code
+{
+    private IList<ProjectEntity> _projects = Array.Empty<ProjectEntity>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var currentUserId = await AuthService.CurrentAuthIdAsync();
+
+        _projects = await DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAll<ProjectEntity>()
+            .Where
+            (
+                project => project.Users.Any
+                    (
+                        user => user.Id == currentUserId
+                    )
+            )
+            .ToListAsync(CancellationToken);
+
+        if (!_projects.Any())
+        {
+            NavigationManager.NavigateTo("/projects/create", true);
+        }
+    }
+}

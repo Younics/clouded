@@ -1,0 +1,51 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using AutoMapper
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/functions/{FunctionProviderId}"
+@inject IDbContextResolver DbContextResolver
+@inject IMapper Mapper
+
+<PageTitle>@Project.Name | Function provider - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <FunctionForm Title="Function provider: " Model="@Input" ProjectId="@ProjectId" IsCreate="@false" OnValidSubmit="@(() => { })"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string FunctionProviderId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private FunctionProviderInput? Input { get; set; }
+
+    private CloudedDbContext _dbContext = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver
+            .UseScopedContext<CloudedDbContext>();
+
+        var functionProviderEntity = await _dbContext
+            .GetAsync<FunctionProviderEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(FunctionProviderId),
+                CancellationToken
+            );
+
+
+        if (functionProviderEntity != null)
+        {
+            var input = Mapper.Map<FunctionProviderInput>(functionProviderEntity);
+
+            Input = input;
+        }
+    }
+}

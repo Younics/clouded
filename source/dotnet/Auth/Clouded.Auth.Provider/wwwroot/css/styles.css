@@ -1,0 +1,19 @@
+.mud-snackbar-location-top-right{top:64px !important}/*# sourceMappingURL=styles.css.map */
+
+/* fix outlined input outside paper */
+.mud-input-label-outlined:not(.mud-paper .mud-input-label-outlined) { /*noinspection CssUnresolvedCustomProperty*/
+    background-color: var(--mud-palette-background);
+}
+
+.mud-background .mud-input-label-outlined { /*noinspection CssUnresolvedCustomProperty*/
+    background-color: var(--mud-palette-background);
+}
+
+/* TODO: move to scoped CSS */
+.tabs-flex-none .mud-tabs-panel-header {
+    flex: 0 !important;
+}
+
+.filter-menu-item.mud-list-item-clickable:hover {
+    background-color: transparent;
+}

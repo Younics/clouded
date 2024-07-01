@@ -1,0 +1,568 @@
+@inject IDialogService DialogService
+@inject ApplicationOptions ApplicationOptions
+@inject ComponentBus Bus
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IUserSettingsDataSource UserSettingsDataSource
+@using Clouded.Admin.Provider.Helpers
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Core.DataSource.Shared.Input
+@using Clouded.Admin.Provider.Contexts
+@using Clouded.Admin.Provider.Contracts
+@using Clouded.Admin.Provider.DataSources.Interfaces
+@using BlazorComponentBus
+@using Clouded.Core.DataSource.Shared.Enums
+@using Clouded.Core.DataSource.Shared.Extensions
+@using Clouded.Core.DataSource.Shared.Interfaces
+@using Clouded.Shared.Enums
+@inherits CancellableComponentBase
+
+<MudPaper Class="pa-2">
+    <MudStack Row="@true" Class="mb-4">
+        <MudIconButton
+            Class="px-2"
+            OnClick="@(() => Collapsed = !Collapsed)"
+            ButtonType="ButtonType.Button"
+            Variant="Variant.Filled"
+            Icon="@(Collapsed ? Icons.Material.Filled.ArrowDropDown : Icons.Material.Filled.ArrowDropUp)"
+            Title="@(Collapsed ? "Open" : "Close")"
+            Color="Color.Tertiary"/>
+
+        <MudText Class="mud-background flex-grow-1 rounded px-4 py-1" Typo="Typo.h6">
+            @TableOptions.Name
+            @if (Subtitle)
+            {
+                <small> (by @Relation.TargetColumn)</small>
+            }
+        </MudText>
+
+        @if (!Collapsed && (!Relation.IsUnique || (Relation.IsUnique && _totalItems == 0)))
+        {
+            <MudButton
+                OnClick="CreateNewEntity"
+                StartIcon="@Icons.Material.Filled.Add"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Create
+            </MudButton>
+
+            <MudButton
+                OnClick="AttachEntity"
+                StartIcon="@Icons.Material.Filled.AddLink"
+                ButtonType="ButtonType.Submit"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Attach
+            </MudButton>
+        }
+    </MudStack>
+
+    @if (!Collapsed)
+    {
+        <MudTable
+            Class="py-1 px-2"
+            T="DataSourceDictionary"
+            @ref="_tableReference"
+            ServerData="@(new Func<TableState, Task<TableData<DataSourceDictionary>>>(LoadData))"
+            OnRowClick="RowClick"
+            Hover="@true"
+            Bordered="@true"
+            Virtualize="@true"
+            Striped="@true">
+
+            <ToolBarContent>
+                <MudGrid
+                    Spacing="1"
+                    Justify="Justify.SpaceBetween"
+                    Class="flex-1 align-center rounded mud-background"
+                    style="margin: 0 -8px 0 -16px">
+                    <MudItem Class="d-flex align-center ml-2">
+                        <MudIcon Icon="@Icons.Material.Outlined.TableChart"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudStack Row="@true" AlignItems="AlignItems.Center" Class="ml-auto">
+                            <MudTextField
+                                T="string"
+                                ValueChanged="@(OnSearch)"
+                                Margin="Margin.Dense"
+                                Variant="Variant.Outlined"
+                                Placeholder="Search"
+                                Adornment="Adornment.Start"
+                                AdornmentIcon="@Icons.Material.Filled.Search"
+                                IconSize="Size.Medium"
+                                Class="mt-0 mr-2">
+                            </MudTextField>
+                            <MudMenu Variant="Variant.Filled" Color="Color.Surface" DisableRipple="@true" Icon="@Icons.Material.Filled.ViewColumn">
+                                @if (_visibleColumns.Any())
+                                {
+                                    foreach (var column in _visibleColumns)
+                                    {
+                                        <MudMenuItem Class="filter-menu-item" AutoClose="@false">
+                                            <MudCheckBox
+                                                T="bool"
+                                                Label="@column.Name"
+                                                Checked="@(_viewConfigs[column.Column])"
+                                                CheckedChanged="@((val) => SetViewValue(column, val))"/>
+                                        </MudMenuItem>
+                                    }
+                                }
+                            </MudMenu>
+                            <MudIconButton
+                                OnClick="@RefreshTable"
+                                Color="Color.Tertiary"
+                                Variant="Variant.Filled"
+                                Icon="@Icons.Material.Filled.Refresh"/>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </ToolBarContent>
+
+            <HeaderContent>
+                <MudTh>&nbsp;</MudTh>
+                @foreach (var column in GetVisibleColumns())
+                {
+                    var relation = _insideRelations.FirstOrDefault(x => x.Column == column.Column);
+
+                    if (relation != null || !column.IsSortable())
+                    {
+                        <MudTh>@column.Name</MudTh>
+                    }
+                    else
+                    {
+                        <MudTh>
+                            <MudTableSortLabel SortLabel="@column.Column" T="DataSourceDictionary">@column.Name</MudTableSortLabel>
+                        </MudTh>
+                    }
+                }
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Actions">
+                    <MudStack Spacing="2" Row="@true">
+                        <MudIconButton @onclick:stopPropagation HtmlTag="a" Target="_blank" Href="@(context.ToEntityDetailUri(_relationColumns, $"/management/{Relation.TargetTable}/detail"))" Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small"/>
+                        <MudIconButton @onclick:stopPropagation HtmlTag="a" Href="@(context.ToEntityDetailUri(_relationColumns, $"/management/{Relation.TargetTable}/edit"))" Icon="@Icons.Material.Filled.Edit" Size="Size.Small"/>
+                    </MudStack>
+                </MudTd>
+                @foreach (var column in GetVisibleColumns())
+                {
+                    var relation = _insideRelations.FirstOrDefault(x => x.Column == column.Column);
+
+                    @if (relation != null)
+                    {
+                        <MudTd DataLabel="@column.Name">@(context.GetColumnValue(column.Column) == null ? '-' : string.Join(", ", _relationConfigs[relation].Select(name => context.GetColumnValue(relation.GetAlias() + "." + name))))</MudTd>
+                    }
+                    else if (column.Type == ETableColumnType.Virtual)
+                    {
+                        if (column.VirtualType == EVirtualColumnType.Image)
+                        {
+                            <MudTd DataLabel="@column.Name" Style="height: 80px; display: table-cell">
+                                <MudImage Style="height: 100%" Src="@column.GetVirtualFieldValue(context)" Alt="@column.Name" Elevation="25" Class="rounded-lg" loading="lazy"/>
+                            </MudTd>
+                        }
+                        else if (column.VirtualType == EVirtualColumnType.String)
+                        {
+                            <MudTd DataLabel="@column.Name" Style="height: 80px; display: table-cell">
+                                @column.GetVirtualFieldValue(context)
+                            </MudTd>
+                        }
+                    }
+                    else if (column.Type == ETableColumnType.Image)
+                    {
+                        <MudTd DataLabel="@column.Name" Style="height: 80px; display: table-cell">
+                            @if (context.GetColumnValue(column.Column) != null)
+                            {
+                                <MudImage Style="height: 100%" Src="@ColumnHelper.ToImageSrc(context.GetColumnValue(column.Column))" Alt="@column.Name" Elevation="25" Class="rounded-lg __load-image" loading="lazy"/>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </MudTd>
+                    }
+                    else
+                    {
+                        <MudTd DataLabel="@column.Name">@(context.GetColumnValue(column.Column, "-"))</MudTd>
+                    }
+                }
+                @if (!Relation.TargetColumnNotNull)
+                {
+                    <MudTd>
+                        <MudStack Row="@true">
+                            <MudIconButton
+                                Icon="@Icons.Material.Filled.Delete"
+                                Color="Color.Tertiary"
+                                Size="Size.Medium"
+                                OnClick="@(() => DeleteRelationAsync(context))"/>
+                        </MudStack>
+                    </MudTd>
+                }
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText>No matching records found</MudText>
+            </NoRecordsContent>
+            <LoadingContent>
+                <MudText>Loading...</MudText>
+            </LoadingContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@(new[] { 5, 10, 25 })"/>
+            </PagerContent>
+        </MudTable>
+    }
+</MudPaper>
+
+@code {
+
+    [Parameter] public bool Collapsed { get; set; } = true;
+
+    [Parameter] public bool IsDetail { get; set; }
+
+    [Parameter] public bool Subtitle { get; set; } = false;
+
+    [Parameter] public required AdminContext Context { get; set; }
+
+    [Parameter] public required TableOptions TableOptions { get; set; }
+
+    [Parameter] public required RelationResult Relation { get; set; }
+
+    [Parameter] public DataSourceDictionary? ParentData { get; set; }
+
+    [Parameter] public EventCallback<DataSourceDictionary?>? ParentDataChanged { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    private MudTable<DataSourceDictionary>? _tableReference;
+    private string _componentUid = Guid.NewGuid().ToString();
+    private int _totalItems = 0;
+    private IEnumerable<RelationResult> _insideRelations = Array.Empty<RelationResult>();
+    private Dictionary<RelationResult, IEnumerable<string>> _relationConfigs = new();
+    private IEnumerable<DataSourceDictionary> _data = Array.Empty<DataSourceDictionary>();
+    private IEnumerable<ColumnResult> _relationColumns = Array.Empty<ColumnResult>();
+    private IEnumerable<ColumnResult> _searchableColumns = new List<ColumnResult>();
+    private string _searchString;
+    private Dictionary<string, bool> _viewConfigs = new();
+    private IEnumerable<TableColumnOptions> _visibleColumns = new List<TableColumnOptions>();
+
+    protected override void OnInitialized()
+    {
+        Bus.Subscribe<CreatedRelationContract>(RelationDrawerHandler);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _relationColumns = Context.GetColumns(Relation.TargetSchema, Relation.TargetTable);
+        _insideRelations = Context.GetInsideRelations(Relation.TargetSchema, Relation.TargetTable);
+        _searchableColumns = _relationColumns.Where(i => EColumnTypeGroups.Textual.Contains(i.Type));
+        var authState = await AuthenticationStateTask;
+        _relationConfigs = await _insideRelations.LoadRelationsConfigs(authState.User.Identity.Name, UserSettingsDataSource);
+        _tableReference?.ReloadServerData();
+        _visibleColumns = TableOptions.Columns.OnlyVisibleForList();
+        _viewConfigs = await _visibleColumns.LoadViewConfigs(TableOptions, authState.User.Identity.Name, UserSettingsDataSource, Relation);
+    }
+
+    protected override void DisposeComponent()
+    {
+        Bus.UnSubscribe<CreatedRelationContract>(RelationDrawerHandler);
+    }
+
+    private void RelationDrawerHandler(MessageArgs args) => InvokeAsync(() =>
+    {
+        var message = args.GetMessage<CreatedRelationContract>();
+
+        if (message.ComponentId != _componentUid)
+        {
+            return;
+        }
+
+        _tableReference?.ReloadServerData();
+
+        StateHasChanged();
+    });
+
+    private Task<TableData<DataSourceDictionary>> LoadData(TableState state)
+    {
+        var joins = _relationConfigs.Where(relationConfig => _viewConfigs[relationConfig.Key.Column]).Select(relationConfig => new JoinInput
+        {
+            Schema = relationConfig.Key.TargetSchema,
+            Table = relationConfig.Key.TargetTable,
+            Alias = relationConfig.Key.GetAlias(),
+            On = new ConditionColumnInput
+            {
+                Alias = relationConfig.Key.GetAlias(),
+                Column = relationConfig.Key.TargetColumn,
+                TargetAlias = relationConfig.Key.Table,
+                TargetColumn = relationConfig.Key.Column,
+                Operator = EOperator.Equals
+            }
+        });
+
+        joins = joins.Append(new JoinInput
+        {
+            Schema = Relation.Schema,
+            Table = Relation.Table,
+            Alias = Relation.Table,
+            On = new ConditionColumnInput
+            {
+                Alias = Relation.Table,
+                Column = Relation.Column,
+                TargetAlias = Relation.TargetTable,
+                TargetColumn = Relation.TargetColumn,
+                Operator = EOperator.Equals
+            }
+        });
+
+        var where = new ConditionAndInput
+        {
+            Conditions = new ICondition[]
+            {
+                new ConditionValueInput
+                {
+                    Alias = Relation.TargetTable,
+                    Column = Relation.TargetColumn,
+                    Operator = EOperator.Equals,
+                    Value = ParentData?.GetValueOrDefault(Relation.Column)
+                },
+                new ConditionOrInput
+                {
+                    Conditions = _searchableColumns.Select(targetCol => new ConditionValueInput
+                    {
+                        Alias = Relation.TargetTable,
+                        Column = targetCol.Name,
+                        Value = _searchString ?? "",
+                        Operator = EOperator.Contains,
+                        Mode = EMode.Insensitive
+                    })
+                }
+            }
+        };
+        var selectCols = new List<SelectColDesc>
+        {
+        };
+
+        foreach (var visibleColumn in GetVisibleColumns())
+        {
+            selectCols.Add(new SelectColDesc
+            {
+                ColJoin = new[] { Relation.TargetTable, visibleColumn.Column },
+                Alias = visibleColumn.Column
+            });
+        }
+
+        foreach (var relationConfig in _relationConfigs.Where(relationConfig => _viewConfigs[relationConfig.Key.Column]))
+        {
+            foreach (var relationCol in relationConfig.Value)
+            {
+                selectCols.Add(new SelectColDesc
+                {
+                    ColJoin = new[] { relationConfig.Key.GetAlias(), relationCol },
+                    Alias = $"{relationConfig.Key.GetAlias()}.{relationCol}"
+                });
+            }
+        }
+
+        var totalCount = Context.Count
+        (
+            new SelectInput
+            {
+                Schema = Relation.TargetSchema,
+                Table = Relation.TargetTable,
+                Alias = Relation.TargetTable,
+                SelectedColumns = new[]
+                {
+                    new SelectColDesc { ColJoin = new[] { Relation.TargetTable, "*" } }
+                },
+                Join = joins,
+                Where = where
+            }
+        );
+
+        var data = Context
+            .Select
+            (
+                new SelectInput
+                {
+                    Schema = Relation.TargetSchema,
+                    Table = Relation.TargetTable,
+                    Alias = Relation.TargetTable,
+                    SelectedColumns = selectCols,
+                    Join = joins,
+                    Where = where,
+                    Limit = state.PageSize,
+                    Offset = state.Page * state.PageSize,
+                    OrderBy = state.SortLabel != null
+                        ? new[]
+                        {
+                            new OrderInput
+                            {
+                                Alias = Relation.TargetTable,
+                                Column = state.SortLabel,
+                                Direction = state.SortDirection == SortDirection.Ascending ? OrderType.Asc : OrderType.Desc
+                            }
+                        }
+                        : new[]
+                        {
+                            new OrderInput
+                            {
+                                Alias = Relation.TargetTable,
+                                Column = _relationColumns?.FirstOrDefault(i => i.IsPrimary)?.Name ?? _relationColumns!.First().Name,
+                                Direction = OrderType.Asc
+                            }
+                        }
+                }
+            )
+            .ToList();
+
+        _totalItems = Convert.ToInt32(totalCount);
+        StateHasChanged();
+
+        return Task.FromResult
+        (
+            new TableData<DataSourceDictionary>
+            {
+                TotalItems = _totalItems,
+                Items = data
+            }
+        );
+    }
+
+    private void RowClick(TableRowClickEventArgs<DataSourceDictionary> args)
+    {
+        NavigationManager.NavigateTo(args.Item.ToEntityDetailUri(_relationColumns, $"/management/{Relation.TargetTable}/detail"));
+    }
+
+    private async Task AttachEntity()
+    {
+        var parameters = new DialogParameters
+        {
+            {
+                "Context", Context
+            },
+            {
+                "EntityName", TableOptions.Name
+            },
+            {
+                "Relation", Relation
+            },
+        };
+
+        var dialog = await DialogService.ShowAsync<AttachDialog>($"Attach {TableOptions.Name} entity", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        });
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var data = result.Data?.GetType().GetProperty("Value")?.GetValue(result.Data);
+            if (data != null && data is DataSourceDictionary dataSourceDictionary)
+            {
+                dataSourceDictionary[Relation.TargetColumn] = ParentData![Relation.Column];
+
+                Context.Update(
+                    new UpdateInput
+                    {
+                        Schema = Relation.TargetSchema,
+                        Table = Relation.TargetTable,
+                        Alias = Relation.TargetTable,
+                        Where = new ConditionAndInput
+                        {
+                            Conditions = ColumnHelper.WherePk(Relation.TargetTable, dataSourceDictionary.GetPrimaryColumnsToString(_relationColumns), _relationColumns)
+                        },
+                        Data = dataSourceDictionary
+                    });
+
+                Snackbar.Add("Attached", Severity.Success);
+                _tableReference!.ReloadServerData();
+            }
+        }
+    }
+
+    private void CreateNewEntity()
+    {
+        if (_totalItems > 0 && Relation.IsUnique)
+        {
+            Snackbar.Add("Relation already exists.", Severity.Warning);
+            return;
+        }
+
+        var insideRelations = Context.GetInsideRelations(Relation!.TargetSchema, Relation.TargetTable);
+        var relationTable = ApplicationOptions.Clouded.Admin.Tables.ToList().First(x => x.Table == Relation.TargetTable);
+        var columns = Context.GetColumns(Relation.TargetSchema, Relation.TargetTable);
+
+        Bus.Publish(new RelationDrawerContract
+        {
+            IsOpen = true,
+            Name = TableOptions.Name,
+            Context = Context,
+            InsideRelations = insideRelations,
+            Table = relationTable,
+            Columns = columns,
+            ComponentId = _componentUid,
+            PrefillEntity = ParentData,
+            PrefillEntityParam = Relation.TargetColumn,
+        });
+    }
+
+    private async Task DeleteRelationAsync(DataSourceDictionary relationData)
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            relationData[Relation.TargetColumn] = null;
+
+            Context.Update(
+                new UpdateInput
+                {
+                    Schema = Relation.TargetSchema,
+                    Table = Relation.TargetTable,
+                    Alias = Relation.TargetTable,
+                    Where = new ConditionAndInput
+                    {
+                        Conditions = ColumnHelper.WherePk(Relation.TargetTable, relationData.GetPrimaryColumnsToString(_relationColumns), _relationColumns)
+                    },
+                    Data = relationData
+                });
+
+            Snackbar.Add("Detached", Severity.Success);
+            _tableReference!.ReloadServerData();
+        }
+    }
+
+    private void OnSearch(string text)
+    {
+        _searchString = text;
+        _tableReference?.ReloadServerData();
+    }
+
+
+    private async void SetViewValue(TableColumnOptions column, bool value)
+    {
+        var authState = await AuthenticationStateTask;
+
+        _viewConfigs[column.Column] = value;
+
+        TableOptions!.SetViewsConfig(
+            ApplicationOptions.Clouded.Admin.Auth.UserSettings,
+            authState.User.Identity!.Name!,
+            UserSettingsDataSource,
+            _viewConfigs,
+            Relation
+        );
+
+        _tableReference?.ReloadServerData();
+    }
+
+    private IEnumerable<TableColumnOptions> GetVisibleColumns()
+    {
+        return _visibleColumns.Where(c => _viewConfigs[c.Column]);
+    }
+
+    private async Task RefreshTable()
+    {
+        await _tableReference?.ReloadServerData();
+    }
+
+}

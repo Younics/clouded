@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Clouded.Auth.Client\Clouded.Auth.Client.csproj" />
+    <ProjectReference Include="..\Clouded.Auth.Shared\Clouded.Auth.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,93 @@
+@page "/management/permissions/{PermissionId}"
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ApplicationOptions Options
+@inject IPermissionDataSource PermissionDataSource
+
+@if (_initiallyLoaded)
+{
+    <MudGrid Spacing="4">
+        <MudItem xs="12">
+            <MudText Typo="Typo.h2">Update permission</MudText>
+        </MudItem>
+        
+        <MudItem xs="12">
+            <MudPaper Class="pa-2">
+                <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Permission attributes</MudText>
+                <GenericFields
+                  TDictionary="PermissionDictionary"
+                        Columns="_permissionColumns"
+                        IdColumnName="@Options.Clouded.Auth.Identity.Permission!.ColumnId"
+                        @bind-Data="_permission"
+                    />
+            </MudPaper>
+        </MudItem>
+      
+        <MudItem Class="d-flex justify-between" xs="12">
+            <MudButton
+                HtmlTag="a"
+                Href="/management/permissions"
+                StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+                Variant="Variant.Filled"
+                Color="Color.Tertiary">
+                Cancel
+            </MudButton>
+            <div class="ml-auto">
+                <MudButton
+                    OnClick="Delete"
+                    StartIcon="@Icons.Material.Filled.DeleteForever"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary">
+                    Delete
+                </MudButton>
+                <MudButton
+                    OnClick="Update"
+                    StartIcon="@Icons.Material.Filled.Check"
+                    ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    Color="Color.Tertiary"
+                    Class="ml-auto">
+                    Update
+                </MudButton>
+            </div>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public string? PermissionId { get; set; }
+
+    private bool _initiallyLoaded;
+
+    private IEnumerable<ColumnResult> _permissionColumns = null!;
+    private PermissionDictionary _permission = new();
+
+
+    protected override void OnInitialized()
+    {
+        _permissionColumns = PermissionDataSource.GetEntityColumns();
+        _permission = PermissionDataSource.EntityFindById(PermissionId);
+
+        _initiallyLoaded = true;
+    }
+
+    private void Update()
+    {
+        PermissionDataSource.EntityUpdate(PermissionId, _permission);
+
+        Snackbar.Add("Updated", Severity.Success);
+    }
+
+    private void Delete()
+    {
+        PermissionDataSource.EntityDelete(PermissionId);
+        
+        Snackbar.Add("Deleted", Severity.Success);
+        NavigationManager.NavigateTo("/management/permissions");
+    }
+}

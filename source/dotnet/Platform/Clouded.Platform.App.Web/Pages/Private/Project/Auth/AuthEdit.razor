@@ -1,0 +1,92 @@
+﻿@inject IMapper Mapper
+@using Clouded.Platform.Database.Entities.Clouded
+@using AutoMapper
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using Clouded.Platform.Models.Dtos.Hub
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/authentications/{AuthProviderId}/edit"
+@inject ApplicationOptions ApplicationOptions
+@inject IDbContextResolver DbContextResolver
+@inject NavigationManager NavigationManager
+@inject IAuthProviderService AuthProviderService
+@inject ISnackbar Snackbar
+@inject IStorageService StorageService
+
+<PageTitle>@Project.Name | Authentication Provider - @Input?.Name</PageTitle>
+
+@if (Input != null)
+{
+    <AuthForm ProviderHub="_providerHub" Readonly="@false" Title="Edit Authentication Provider" Model="Input" ProjectId="@ProjectId" OnValidSubmit="OnValidSubmit"/>
+}
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string AuthProviderId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private AuthProviderInput? Input { get; set; }
+
+    private HubConnection _providerHub = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authProviderEntity = await DbContextResolver
+            .UseScopedContext<CloudedDbContext>()
+            .GetAsync<AuthProviderEntity>
+            (
+                entity =>
+                    entity.Id == long.Parse(AuthProviderId),
+                CancellationToken
+            );
+
+
+        if (authProviderEntity != null)
+        {
+            var input = Mapper.Map<AuthProviderInput>(authProviderEntity);
+            
+            AuthProviderService.PrepareInput(authProviderEntity, input);
+
+            Input = input;
+            
+    //todo handle connection exception
+            _providerHub = AuthProviderService.GetProviderHub(StorageService);
+
+            _providerHub.On<HubProviderProcessingOutput>
+                (
+                    nameof(HubProviderProcessingOutput),
+                    output =>
+                    {
+                        InvokeAsync(StateHasChanged);
+                        if (!output.Success)
+                        {
+                            Snackbar.Add(output.ErrorMessage, Severity.Error);
+                            NavigationManager.NavigateTo(AuthProviderService.GetDetailRoute(ProjectId, Input.Id));
+                            return;
+                        }
+
+                        if (authProviderEntity?.Id != output.Id) return;
+
+                        Snackbar.Add(output.SuccessMessage, Severity.Success);
+                        NavigationManager.NavigateTo(AuthProviderService.GetDetailRoute(ProjectId, Input.Id));
+                    }
+                );
+
+            await _providerHub.StartAsync();
+        }
+    }
+
+    private async Task OnValidSubmit()
+    {
+        var authProvider = await AuthProviderService.UpdateAsync(Input, cancellationToken: CancellationToken);
+
+        Snackbar.Add("Auth provider updated", Severity.Success);
+        
+        NavigationManager.NavigateTo(AuthProviderService.GetDetailRoute(ProjectId, Input.Id));
+    }
+}

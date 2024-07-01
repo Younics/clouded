@@ -1,0 +1,39 @@
+<MudDialog>
+    <DialogContent>
+        <MudText>Do you really want to delete this record? This process cannot be undone.</MudText>
+        @if (CascadeOption)
+        {
+            <MudCheckBox @bind-Checked="@_cascadeValue" Label="Cascade"></MudCheckBox>
+            <MudText Typo="Typo.body2">Checking the cascade option will ensure that all related entities will be also deleted. If not checked then related entities with non-nullable relation and non-cascade foreign key rule throw an exception.</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="@Color.Error" Variant="Variant.Filled" OnClick="Submit">Delete</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public bool CascadeOption { get; set; }
+
+    private bool _cascadeValue = true;
+
+
+    protected override void OnInitialized()
+    {
+        MudDialog.SetTitle("Are you sure?");
+        MudDialog.SetOptions(new DialogOptions { CloseOnEscapeKey = true, CloseButton = true, MaxWidth = MaxWidth.ExtraSmall });
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(new
+    {
+        cascade = _cascadeValue
+    }));
+
+    void Cancel() => MudDialog.Cancel();
+}

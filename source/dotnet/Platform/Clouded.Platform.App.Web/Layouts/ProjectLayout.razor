@@ -1,0 +1,278 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using Clouded.Shared
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@using System.Reflection
+@inherits PrivateLayout
+@inject IDbContextResolver DbContextResolver
+@inject IAuthService AuthService
+@inject NavigationManager NavigationManager
+
+@if (_project != null)
+{
+    <CascadingValue Name="Project" Value="@_project" IsFixed="@true">
+        <MudLayout>
+            <MudAppBar ToolBarClass="gap-2" Elevation="0" Class="mud-background">
+                <MudBreadcrumbs Class="rounded mud-background mud-elevation-1 py-0" Items="_items" Separator=">"></MudBreadcrumbs>
+                <MudSpacer/>
+                <MudTooltip Arrow="true" Text="Project settings">
+                    <MudFab
+                        Size="Size.Small"
+                        Color="Color.Secondary"
+                        StartIcon="@Icons.Material.Filled.Settings"/>
+                </MudTooltip>
+
+                <MudTooltip Arrow="true" Text="Logout">
+                    <MudFab
+                        Size="Size.Small"
+                        Color="Color.Secondary"
+                        StartIcon="@Icons.Material.Filled.Logout"
+                        OnClick="@(_ => Logout())"/>
+                </MudTooltip>
+            </MudAppBar>
+
+            <MudDrawer
+                @bind-Open="_drawerOpen"
+                Color="Color.Transparent"
+                Variant="DrawerVariant.Mini"
+                Elevation="0"
+                OpenMiniOnHover="false">
+                <div
+                    Class="relative rounded mud-elevation-2"
+                    Style="background: black; height: calc(100vh - 16px - 32px); margin: 16px 0 19px 24px">
+                    <MudDrawerHeader Class="d-flex justify-center">
+                        <img width="120" alt="logo" src="assets/logo.png" class="fixed object-cover"/>
+                    </MudDrawerHeader>
+                    <div Class="pt-4 pb-12" style="height: 100px">
+
+                        <MudSelect
+                            T="long"
+                            Class="workspace-select"
+                            Value="@_project.Id"
+                            ValueChanged="@OnWorkspaceChange"
+                            Placeholder="Choose an project"
+                            Variant="Variant.Text"
+                            AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var projectEntity in _projects)
+                            {
+                                <MudSelectItem T="long" Value="@projectEntity.Id">@projectEntity.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+
+                    <div Style="position: absolute; bottom: 80px; right: 6px">
+                        <MudIconButton
+                            Color="Color.Secondary"
+                            Variant="Variant.Filled"
+                            DisableRipple="true"
+                            Class="fixed mud-elevation-7"
+                            Icon="@(_drawerOpen ? Icons.Material.Filled.KeyboardArrowLeft : Icons.Material.Filled.KeyboardArrowRight)"
+                            Edge="Edge.Start"
+                            OnClick="@(_ => DrawerToggle())"/>
+                    </div>
+
+                    <MudNavMenu
+                        Class="mud-secondary-text"
+                        Bordered="true"
+                        Color="Color.Primary"
+                        Style="max-height: calc(100% - 250px); overflow: auto; padding-left: 3px; white-space: nowrap">
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="@($"/projects/{_project.Id}/")"
+                            Match="NavLinkMatch.All"
+                            Icon="@Icons.Material.Filled.Dashboard">
+                            Dashboard
+                        </MudNavLink>
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="@($"/projects/{_project.Id}/datasources")"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.Dns">
+                            DataSources
+                        </MudNavLink>
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="@($"/projects/{_project.Id}/authentications")"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.Security">
+                            Authentications
+                        </MudNavLink>
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="@($"/projects/{_project.Id}/admin_panels")"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.AdminPanelSettings">
+                            Admin Panels
+                        </MudNavLink>
+                        @* <MudNavLink *@
+                        @*     IconColor="Color.Inherit" *@
+                        @*     Href="@($"/projects/{_project.Id}/apis")" *@
+                        @*     Match="NavLinkMatch.Prefix" *@
+                        @*     Icon="@Icons.Material.Filled.Api"> *@
+                        @*     APIs *@
+                        @* </MudNavLink> *@
+                        <MudNavLink
+                            IconColor="Color.Inherit"
+                            Href="@($"/projects/{_project.Id}/functions")"
+                            Match="NavLinkMatch.Prefix"
+                            Icon="@Icons.Material.Filled.DataObject">
+                            Functions
+                        </MudNavLink>
+
+                        <MudNavGroup
+                            IconColor="Color.Inherit"
+                            Icon="@Icons.Material.Filled.Adjust"
+                            Title="AI" Expanded="true">
+                            <MudNavLink
+                                IconColor="Color.Inherit"
+                                Icon="@Icons.Material.Filled.DataThresholding"
+                                Match="NavLinkMatch.Prefix"
+                                Href="@($"/projects/{_project.Id}/ai/sql")">
+                                SQL
+                            </MudNavLink>
+                        </MudNavGroup>
+
+                        <MudNavGroup
+                            IconColor="Color.Inherit"
+                            Icon="@Icons.Material.Filled.Settings"
+                            Title="Others" Expanded="true">
+                            <MudNavLink
+                                IconColor="Color.Inherit"
+                                Icon="@Icons.Material.Filled.Public"
+                                Match="NavLinkMatch.Prefix"
+                                Href="@($"/projects/{_project.Id}/domains")">
+                                Domains
+                            </MudNavLink>
+                        </MudNavGroup>
+                    </MudNavMenu>
+                </div>
+            </MudDrawer>
+            <MudMainContent>
+                <MudContainer MaxWidth="MaxWidth.False" Class="pa-8" Style="min-height: calc(100vh - var(--mud-appbar-height))">
+                    <ErrorBoundary @ref="errorBoundary">
+                        <ChildContent>
+                            @Body
+                        </ChildContent>
+                        <ErrorContent>
+                            <MudAlert Severity="Severity.Error">
+                                An error has occurred. This application may no longer respond until reloaded.
+                            </MudAlert>
+                        </ErrorContent>
+                    </ErrorBoundary>
+                </MudContainer>
+            </MudMainContent>
+        </MudLayout>
+    </CascadingValue>
+}
+
+@code {
+
+    [CascadingParameter(Name = "RouteData")]
+    public RouteData? RouteData { get; set; }
+
+    private bool _drawerOpen = true;
+    private ProjectEntity? _project;
+    private ErrorBoundary? errorBoundary;
+    private Dictionary<string, string> _icons;
+    private IList<ProjectEntity> _projects = Array.Empty<ProjectEntity>();
+
+    private List<BreadcrumbItem> _items = new()
+    {
+        new BreadcrumbItem("Projects", href: "#", icon: Icons.Material.Filled.Home)
+    };
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (RouteData == null)
+            return;
+
+        var hasProjectId = long.TryParse
+        (
+            (string)RouteData.RouteValues.GetValueOrDefault("ProjectId", string.Empty),
+            out var projectId
+        );
+
+        if (!hasProjectId)
+        {
+            NavigationManager.NavigateTo("/projects");
+            return;
+        }
+
+        _icons = typeof(Icons.Material.Filled)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(fi => fi is { IsLiteral: true, IsInitOnly: false })
+            .Select(x => (new
+            {
+                key = x.Name,
+                value = (string)x.GetRawConstantValue()!
+            }))
+            .ToDictionary(x => x.key, x => x.value);
+
+        var currentUserId = await AuthService.CurrentAuthIdAsync();
+        var context = DbContextResolver.UseScopedContext<CloudedDbContext>();
+
+        _project = context.Get<ProjectEntity>(projectId);
+
+        _projects = await context
+            .GetAll<ProjectEntity>()
+            .Where
+            (
+                project => project.Users.Any
+                (
+                    user => user.Id == currentUserId
+                )
+            )
+            .ToListAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        errorBoundary?.Recover();
+
+        BuildBreadcrumbs();
+    }
+
+    private void BuildBreadcrumbs()
+    {
+        var route = NavigationManager.Uri;
+        var basePath = route.Split("projects/")[0] + "projects";
+        var path = route.Contains("projects/") ? route.Split("projects/")[1] : "";
+        var segments = path.Split("/");
+
+        _items = _items.Where(i => i.Href == "#").ToList();
+        var walkthrough = new List<string> { basePath };
+        foreach (var segment in segments)
+        {
+            if (segment == "") continue;
+
+            walkthrough.Add(segment);
+            var currentUri = string.Join("/", walkthrough);
+
+            var breadItemText = segment.Replace("_", " ").Capitalize();
+            if (breadItemText?.Contains("?") ?? false)
+            {
+                breadItemText = breadItemText.Split("?")[0];
+            }
+
+            _items.Add(new BreadcrumbItem(breadItemText ?? "", href: currentUri));
+        }
+    }
+
+    private void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login", true);
+    }
+
+    private void OnWorkspaceChange(long projectId)
+    {
+        NavigationManager.NavigateTo($"/projects/{projectId}");
+    }
+
+}

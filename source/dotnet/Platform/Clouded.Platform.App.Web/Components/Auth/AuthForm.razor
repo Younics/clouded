@@ -1,0 +1,815 @@
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.Models.Enums
+@using Clouded.Shared
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject IAuthProviderService AuthProviderService
+@inject ISnackbar SnackbarService
+@inject IDbContextResolver DbContextResolver
+@inject IDataSourceService dataSourceService
+
+<EditForm
+    @ref="@_formRef"
+    @bind-IsValid="@_isValid"
+    ValidationDelay="300"
+    OnValidSubmit="OnValidSubmit"
+    Model="@Model">
+
+<FluentValidationValidator/>
+
+<MudGrid Spacing="4">
+<MudItem xs="12">
+    <MudStack Class="" Row="@true">
+        <MudText Class="flex-grow-1" Typo="Typo.h2">@Title</MudText>
+    </MudStack>
+</MudItem>
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AuthProviderService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AuthProviderService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                ButtonType="ButtonType.Submit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            @if (_authProviderEntity != null)
+            {
+                <AuthDeployButtons ProviderHub="@ProviderHub" FullText="@true" Entity="_authProviderEntity"/>
+                <AuthStatusButton ProviderHub="@ProviderHub" FullText="@true" Entity="_authProviderEntity"/>
+            }
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@AuthProviderService.GetEditRoute(ProjectId, Model.Id)"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Basic configuration">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <MudTextField
+                    T="string?"
+                    @bind-Value="Model.Name"
+                    For="@(() => Model.Name)"
+                    TextChanged="OnNameChanged"
+                    Immediate="true"
+                    Label="Name"
+                    Required="true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"/>
+
+                <MudTextField
+                    T="string?"
+                    @ref="_codeTextField"
+                    @bind-Value="Model.Code"
+                    For="@(() => Model.Code)"
+                    AdornmentText="@Model.CodePrefix"
+                    Adornment="Adornment.Start"
+                    Label="Code"
+                    Required="true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"/>
+
+                @if (_domains.Any())
+                {
+                    <MudSelect
+                        T="long?"
+                        ReadOnly="@Readonly"
+                        Placeholder="Choose an option"
+                        Variant="Variant.Outlined"
+                        Label="Domain"
+                        @bind-Value="Model.DomainId"
+                        Required="@true"
+                        AnchorOrigin="Origin.BottomCenter">
+                        @foreach (var domain in _domains)
+                        {
+                            <MudSelectItem T="long?" Value="@domain.Id">@domain.Value</MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+
+                <MudSelect
+                    T="long?"
+                    Value="Model.DataSourceProviderId"
+                    ValueChanged="DataSourceChanged"
+                    For="@(() => Model.DataSourceProviderId)"
+                    Label="DataSource"
+                    Required="true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"
+                    AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var datasource in _dataSources)
+                    {
+                        <MudSelectItem Value="@((long?)datasource.Id)">@datasource.Name</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSwitch
+                    Color="Color.Primary"
+                    @bind-Checked="Model.Configuration.Documentation"
+                    T="bool"
+                    HelperText="If enabled - Swagger API UI will be generated"
+                    Label="API documentation"
+                    ReadOnly="@Readonly"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Token configuration" Collapsable="@true" Collapsed="@false">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+
+                <MudStack Row="@true" Spacing="2">
+                    <MudSwitch
+                        Color="Color.Primary"
+                        @bind-Checked="Model.Configuration.Token.ValidateIssuer"
+                        T="bool"
+                        Label="Validate toke issuer"
+                        ReadOnly="@Readonly"/>
+
+                    <MudSwitch
+                        Color="Color.Primary"
+                        @bind-Checked="Model.Configuration.Token.ValidateAudience"
+                        T="bool"
+                        Label="Validate audience"
+                        ReadOnly="@Readonly"/>
+                </MudStack>
+
+                <MudTextField
+                    T="string?"
+                    @bind-Value="Model.Configuration.Token.ValidIssuer"
+                    For="@(() => Model.Configuration.Token.ValidIssuer)"
+                    Immediate="true"
+                    Label="Issuer"
+                    Required="true"
+                    ReadOnly="@Readonly"
+                    Variant="Variant.Outlined"/>
+
+                <MudStack Row="@true" Spacing="2">
+                    <MudNumericField
+                        T="int"
+                        Required="true"
+                        Variant="Variant.Outlined"
+                        Label="Access token expiration"
+                        HelperText="Defined in seconds"
+                        Step="1"
+                        ReadOnly="@Readonly"
+                        For="@(() => Model.Configuration.Token.AccessTokenExpiration)"
+                        @bind-Value="Model.Configuration.Token.AccessTokenExpiration"/>
+
+                    <MudNumericField
+                        T="int"
+                        Required="true"
+                        Variant="Variant.Outlined"
+                        Label="Refresh token expiration"
+                        HelperText="Defined in seconds"
+                        Step="1"
+                        ReadOnly="@Readonly"
+                        For="@(() => Model.Configuration.Token.RefreshTokenExpiration)"
+                        @bind-Value="Model.Configuration.Token.RefreshTokenExpiration"/>
+                </MudStack>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Hash configuration" Collapsable="@true" Collapsed="@false">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudStack Row="@false" Spacing="2">
+                            <MudSelect
+                                T="EHashType?"
+                                @bind-Value="Model.Configuration.Hash.AlgorithmType"
+                                For="@(() => Model.Configuration.Hash.AlgorithmType)"
+                                Label="Type"
+                                Required="@true"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                AnchorOrigin="Origin.BottomCenter">
+                                @foreach (EHashType? type in Enum.GetValues(typeof(EHashType)))
+                                {
+                                    <MudSelectItem Value="@type">@type</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudTextField
+                                T="string?"
+                                @bind-Value="Model.Configuration.Hash.Secret"
+                                For="@(() => Model.Configuration.Hash.Secret)"
+                                Label="Secret"
+                                Lines="7"
+                                Required="@true"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                Adornment="Adornment.End"
+                                AdornmentIcon="@Icons.Material.Filled.GeneratingTokens"
+                                OnAdornmentClick="@(() => Model.Configuration.Hash.Secret = Generator.RandomString(96))"/>
+
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="6">
+                        @if (Model.Configuration.Hash.AlgorithmType == EHashType.Argon2)
+                        {
+                            <ArgonHashConfig Readonly="@Readonly" @bind-Input="Model.Configuration.ArgonInput"/>
+                        }
+                    </MudItem>
+                </MudStack>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Cors configuration" Collapsable="@true">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudStack Row="@false" Spacing="2">
+
+                            <MudChipField
+                                T="string"
+                                Delimiter="@(char.Parse(" "))"
+                                @bind-Values="Model.Configuration.Cors.AllowedHeaders"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                Label="Allowed headers"/>
+
+                            <ValidationInfoBox T="List<string>" For="@(() => Model.Configuration.Cors.AllowedHeaders)"/>
+
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudStack Row="@false" Spacing="2">
+                            <MudSelect
+                                T="string"
+                                Placeholder="Choose an option"
+                                MultiSelection="@true"
+                                @bind-SelectedValues="@Model.Configuration.Cors.AllowedMethods"
+                                Label="Allowed methods"
+                                SelectAll="@true"
+                                Required="@true"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem T="string" Value="@("GET")">GET</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("POST")">POST</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("PUT")">PUT</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("PATCH")">PATCH</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("DELETE")">DELETE</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("OPTIONS")">OPTIONS</MudSelectItem>
+                            </MudSelect>
+
+                            <ValidationInfoBox T="IEnumerable<string>" For="@(() => Model.Configuration.Cors.AllowedMethods)"/>
+                        </MudStack>
+                    </MudItem>
+                </MudStack>
+
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudStack Row="@false" Spacing="2">
+
+                            <MudChipField
+                                T="string"
+                                Delimiter="@(char.Parse(" "))"
+                                @bind-Values="Model.Configuration.Cors.AllowedOrigins"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                Label="Allowed origins"/>
+
+                            <ValidationInfoBox T="List<string>" For="@(() => Model.Configuration.Cors.AllowedOrigins)"/>
+
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudStack Row="@false" Spacing="2">
+
+                            <MudChipField
+                                T="string"
+                                Delimiter="@(char.Parse(" "))"
+                                @bind-Values="Model.Configuration.Cors.ExposedHeaders"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"
+                                Label="Exposed headers"/>
+
+                            <ValidationInfoBox T="List<string>" For="@(() => Model.Configuration.Cors.ExposedHeaders)"/>
+
+                        </MudStack>
+                    </MudItem>
+                </MudStack>
+
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudSwitch
+                            Color="Color.Primary"
+                            @bind-Checked="Model.Configuration.Cors.SupportsCredentials"
+                            T="bool"
+                            Label="Supports credentials"
+                            ReadOnly="@Readonly"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField
+                            T="int"
+                            Required="true"
+                            Variant="Variant.Outlined"
+                            Label="Max age"
+                            HelperText="Defined in seconds"
+                            Step="1"
+                            ReadOnly="@Readonly"
+                            For="@(() => Model.Configuration.Cors.MaxAge)"
+                            @bind-Value="Model.Configuration.Cors.MaxAge"/>
+                    </MudItem>
+                </MudStack>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Users" Collapsable="@true" Collapsed="@false">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <UserEntityConfig Model="@Model" Readonly="@Readonly" Input="@Model.Configuration.IdentityUser" @bind-UserInput="@Model.Configuration.IdentityUser" Schemas="@_schemas" Tables="@_tables" Columns="@_columns"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Organizations" Switchable="@true" @bind-Enabled="Model.Configuration.IdentityOrganization.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <EntityConfig Model="@Model" Readonly="@Readonly" @bind-Input="@Model.Configuration.IdentityOrganization" Schemas="@_schemas" Tables="@_tables" Columns="@_columns"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Roles" Switchable="@true" @bind-Enabled="Model.Configuration.IdentityRole.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <EntityConfig Model="@Model" Readonly="@Readonly" @bind-Input="@Model.Configuration.IdentityRole" Schemas="@_schemas" Tables="@_tables" Columns="@_columns"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Permissions" Switchable="@true" @bind-Enabled="Model.Configuration.IdentityPermission.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <EntityConfig Model="@Model" Readonly="@Readonly" @bind-Input="@Model.Configuration.IdentityPermission" Schemas="@_schemas" Tables="@_tables" Columns="@_columns"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Google login" Switchable="@true" @bind-Enabled="Model.Configuration.Google.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <SocialConfig Readonly="@Readonly" @bind-Model="Model.Configuration.Google"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Facebook login" Switchable="@true" @bind-Enabled="Model.Configuration.Facebook.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <SocialConfig Readonly="@Readonly" @bind-Model="Model.Configuration.Facebook"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Apple login" Switchable="@true" @bind-Enabled="Model.Configuration.Apple.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <SocialConfig Readonly="@Readonly" @bind-Model="Model.Configuration.Apple"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Management UI" Switchable="@true" @bind-Enabled="Model.Configuration.Management.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                @if (!Readonly)
+                {
+                    <MudStack Row="@true" Spacing="2" AlignItems="AlignItems.Center">
+                        <MudItem xs="5">
+                            <MudTextField
+                                T="string?"
+                                @bind-Value="_user"
+                                For="@(() => _user)"
+                                Label="User"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"/>
+                        </MudItem>
+                        <MudItem xs="5">
+                            <PasswordField
+                                @bind-Value="_password"
+                                For="@(() => _password)"
+                                Label="Password"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"/>
+                        </MudItem>
+                        <MudItem xs="2">
+                            <MudIconButton
+                                Color="Color.Secondary"
+                                Variant="Variant.Filled"
+                                Size="Size.Medium"
+                                OnClick="AddManagementUser"
+                                Icon="@Icons.Material.Filled.Add">
+                            </MudIconButton>
+                        </MudItem>
+                    </MudStack>
+                }
+
+                <MudPaper Outlined="true" Square="true">
+                    <MudList Dense="@true">
+                        <MudListSubheader>
+                            Users
+                        </MudListSubheader>
+                        @foreach (var user in Model.Configuration.Management.Users)
+                        {
+                            <MudListItem>
+                                <MudStack Row="@true" Spacing="2" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                    <MudItem>
+                                        <MudText Typo="Typo.body1">@user.Identity</MudText>
+                                    </MudItem>
+                                    @if (!Readonly)
+                                    {
+                                        <MudItem>
+                                            <MudIconButton
+                                                Variant="Variant.Filled"
+                                                Color="Color.Secondary"
+                                                Size="Size.Medium"
+                                                OnClick="@(() => RemoveUser(user))"
+                                                Icon="@Icons.Material.Filled.Delete">
+                                            </MudIconButton>
+                                        </MudItem>
+                                    }
+                                </MudStack>
+                            </MudListItem>
+                        }
+                    </MudList>
+                </MudPaper>
+
+
+                <ValidationInfoBox T="List<AuthProviderManagementUserInput>" For="@(() => Model.Configuration.Management.Users)"/>
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem xs="12">
+    <Tile Icon="@Icons.Material.Filled.Info" Title="Mail" Switchable="@true" @bind-Enabled="Model.Configuration.Mail.Enabled" Readonly="@Readonly">
+        <Content>
+            <div Class="d-flex flex-column gap-2">
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudTextField
+                            T="string?"
+                            @bind-Value="Model.Configuration.Mail.Host"
+                            For="@(() => Model.Configuration.Mail.Host)"
+                            Label="Server"
+                            ReadOnly="@Readonly"
+                            Variant="Variant.Outlined"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField
+                            T="int"
+                            @bind-Value="Model.Configuration.Mail.Port"
+                            For="@(() => Model.Configuration.Mail.Port)"
+                            Label="Port"
+                            ReadOnly="@Readonly"
+                            Variant="Variant.Outlined"/>
+                    </MudItem>
+                </MudStack>
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudTextField
+                            T="string?"
+                            @bind-Value="Model.Configuration.Mail.From"
+                            For="@(() => Model.Configuration.Mail.From)"
+                            Label="From email"
+                            ReadOnly="@Readonly"
+                            Variant="Variant.Outlined"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField
+                            T="string?"
+                            @bind-Value="Model.Configuration.Mail.ResetPasswordReturnUrl"
+                            For="@(() => Model.Configuration.Mail.ResetPasswordReturnUrl)"
+                            Label="Reset password return URL"
+                            ReadOnly="@Readonly"
+                            HelperText="The URL is used in reset password email, that contains URL to redirect user for password reset form."
+                            Variant="Variant.Outlined"/>
+                    </MudItem>
+                </MudStack>
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudSwitch
+                            Color="Color.Primary"
+                            @bind-Checked="Model.Configuration.Mail.UseSSL"
+                            T="bool"
+                            Label="SSL"
+                            ReadOnly="@Readonly"/>
+                    </MudItem>
+                    <MudItem xs="6">
+
+                        <MudSelect
+                            T="string"
+                            Placeholder="Choose an option"
+                            @bind-Value="@Model.Configuration.Mail.SocketOptions"
+                            For="@(() => Model.Configuration.Mail.SocketOptions)"
+                            Label="Socket options"
+                            ReadOnly="@Readonly"
+                            Variant="Variant.Outlined"
+                            AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem T="string" Value="@("StartTls")">StartTls</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudStack>
+                <MudStack Row="@true" Spacing="2">
+                    <MudItem xs="6">
+                        <MudSwitch
+                            Color="Color.Primary"
+                            @bind-Checked="Model.Configuration.Mail.Authentication"
+                            T="bool"
+                            Label="Authentication"
+                            ReadOnly="@Readonly"/>
+                    </MudItem>
+                </MudStack>
+                @if (Model.Configuration.Mail.Authentication)
+                {
+                    <MudStack Row="@true" Spacing="2">
+                        <MudItem xs="6">
+                            <MudTextField
+                                T="string?"
+                                @bind-Value="Model.Configuration.Mail.User"
+                                For="@(() => Model.Configuration.Mail.User)"
+                                Label="User"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"/>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <PasswordField
+                                @bind-Value="Model.Configuration.Mail.Password"
+                                For="@(() => Model.Configuration.Mail.Password)"
+                                Label="Password"
+                                ReadOnly="@Readonly"
+                                Variant="Variant.Outlined"/>
+                        </MudItem>
+                    </MudStack>
+                }
+            </div>
+        </Content>
+    </Tile>
+</MudItem>
+
+<MudItem Class="d-flex justify-space-between" xs="12">
+    @if (!Readonly)
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AuthProviderService.GetDetailRoute(ProjectId, Model.Id)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    else
+    {
+        <MudButton
+            HtmlTag="a"
+            Href="@AuthProviderService.GetListRoute(ProjectId)"
+            StartIcon="@Icons.Material.Filled.KeyboardArrowLeft"
+            Variant="Variant.Filled"
+            Color="Color.Secondary">
+            Cancel
+        </MudButton>
+    }
+    <div class="d-flex gap-2 ml-auto">
+        @if (!Readonly)
+        {
+            <MudButton
+                ButtonType="ButtonType.Submit"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Check"
+                Variant="Variant.Filled">
+                @(Model.Id == null ? "Create" : "Save")
+            </MudButton>
+        }
+        else
+        {
+            @if (_authProviderEntity != null)
+            {
+                <AuthDeployButtons ProviderHub="@ProviderHub" FullText="@true" Entity="_authProviderEntity"/>
+                <AuthStatusButton ProviderHub="@ProviderHub" FullText="@true" Entity="_authProviderEntity"/>
+            }
+            <MudButton
+                OnClick="@HandleRemoveClick"
+                Color="Color.Secondary"
+                StartIcon="@Icons.Material.Filled.Delete"
+                Variant="Variant.Filled">
+                Delete
+            </MudButton>
+            <MudButton
+                HtmlTag="a"
+                Href="@AuthProviderService.GetEditRoute(ProjectId, Model.Id)"
+                Color="Color.Tertiary"
+                StartIcon="@Icons.Material.Filled.Edit"
+                Variant="Variant.Filled">
+                Edit
+            </MudButton>
+        }
+    </div>
+</MudItem>
+</MudGrid>
+</EditForm>
+
+@code {
+
+    [Parameter, EditorRequired]
+    public string ProjectId { get; set; } = null!;
+
+    [Parameter]
+    public string Title { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public AuthProviderInput Model { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public EventCallback OnValidSubmit { get; set; }
+
+    [Parameter]
+    public bool Readonly { get; set; } = true;
+
+    [Parameter]
+    public HubConnection? ProviderHub { get; set; }
+
+    private EditForm _formRef = null!;
+    private bool _isValid = true;
+
+    private MudTextField<string?>? _codeTextField;
+    private CloudedDbContext _dbContext = null!;
+
+    private IEnumerable<DataSourceEntity> _dataSources = Array.Empty<DataSourceEntity>();
+    private IEnumerable<DomainEntity> _domains = Array.Empty<DomainEntity>();
+
+    private bool _processing;
+    private string _user;
+    private string _password;
+    private int _index;
+    private AuthProviderEntity? _authProviderEntity;
+
+    private Dictionary<long, IEnumerable<string>?>? _schemas;
+    private Dictionary<string, IEnumerable<TableResult>?>? _tables;
+    private Dictionary<string, IEnumerable<ColumnResult>?>? _columns;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _dbContext = DbContextResolver.MakeContext<CloudedDbContext>();
+        _domains = await _dbContext.GetAll<DomainEntity>().ToListAsync(CancellationToken);
+        _dataSources = await _dbContext
+            .GetAll<DataSourceEntity>()
+            .Where(x => x.ProjectId == long.Parse(ProjectId))
+            .ToListAsync(CancellationToken);
+
+        if (Model.DataSourceProviderId != null)
+        {
+            await DataSourceChanged(Model.DataSourceProviderId);
+        }
+
+        if (Model.Id != null)
+        {
+            _authProviderEntity = await _dbContext
+                .GetAsync<AuthProviderEntity>
+                (
+                    entity =>
+                        entity.Id == Model.Id.Value,
+                    CancellationToken
+                );
+        }
+    }
+
+    private void OnNameChanged(string? name) =>
+        _codeTextField?.SetText(name?.ToLower().Replace(' ', '-'));
+
+
+    private async Task HandleRemoveClick()
+    {
+        var dialog = await DialogService.ShowAsync<DeleteDialog>();
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            var dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+            var authProviderEntity = await dbContext
+                .GetAsync<AuthProviderEntity>(x => x.Id == Model.Id);
+
+            await AuthProviderService.DeleteAsync(authProviderEntity!, ProviderHub!, SnackbarService);
+            SnackbarService.Add("Deleted", Severity.Success);
+            NavigationManager.NavigateTo(AuthProviderService.GetListRoute(ProjectId));
+        }
+    }
+
+    private async Task DataSourceChanged(long? datasourceId)
+    {
+        Model.DataSourceProviderId = datasourceId;
+
+        if (datasourceId == null)
+        {
+            return;
+        }
+
+        var dataSource = DbContextResolver
+            .MakeContext<CloudedDbContext>()
+            .Get<DataSourceEntity>(datasourceId.Value);
+
+        _schemas ??= new Dictionary<long, IEnumerable<string>>();
+        _tables ??= new Dictionary<string, IEnumerable<TableResult>>();
+        _columns ??= new Dictionary<string, IEnumerable<ColumnResult>>();
+        dataSourceService.LoadDatasourceContext(dataSource!, _schemas, _tables, _columns);
+    }
+
+    private void AddManagementUser()
+    {
+        if (string.IsNullOrEmpty(_user) || string.IsNullOrEmpty(_password))
+        {
+            return;
+        }
+
+        Model.Configuration.Management.Users.Add(new AuthProviderManagementUserInput
+        {
+            Password = _password,
+            Identity = _user
+        });
+
+        _user = "";
+        _password = "";
+    }
+
+    private void RemoveUser(AuthProviderManagementUserInput user)
+    {
+        Model.Configuration.Management.Users.Remove(user);
+    }
+
+}

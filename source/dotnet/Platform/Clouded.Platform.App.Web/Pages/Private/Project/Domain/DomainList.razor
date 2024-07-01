@@ -1,0 +1,126 @@
+@page "/projects/{ProjectId}/domains"
+@inherits CancellableComponentBase
+@using Clouded.Platform.Database.Entities.Clouded
+@using Microsoft.EntityFrameworkCore
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inject NavigationManager NavigationManager
+@inject IDbContextResolver DbContextResolver
+@inject IDomainService DomainService
+
+@if (_initiallyLoaded)
+{
+    <MudText Typo="Typo.h2">Domains</MudText>
+    <div Class="d-flex items-end pb-6">
+        <MudButton
+            HtmlTag="a"
+            StartIcon="@Icons.Material.Filled.Add"
+            Href="@($"/projects/{ProjectId}/domains/create")"
+            ButtonType="ButtonType.Submit"
+            Variant="Variant.Filled"
+            Color="Color.Tertiary"
+            Class="ml-auto">
+            Create new domain
+        </MudButton>
+    </div>
+
+    <MudTable
+        @ref="_table"
+        T="DomainEntity"
+        ServerData="@(new Func<TableState, Task<TableData<DomainEntity>>>(LoadData))"
+        OnRowClick="RowClick"
+        Class="py-1 px-2"
+        Hover="true"
+        Striped="true">
+        <ToolBarContent>
+            <MudGrid
+                Spacing="1"
+                Justify="Justify.SpaceBetween"
+                Class="flex-1 align-center rounded mud-background"
+                style="margin: 0 -8px 0 -16px">
+                <MudItem Class="d-flex align-center ml-2">
+                    <MudIcon Icon="@Icons.Material.Outlined.TableChart"/>
+                    <MudText Class="px-4" Typo="Typo.h6">Records</MudText>
+                </MudItem>
+                <MudItem xs="5">
+                    <MudTextField
+                        T="string"
+                        Margin="Margin.Dense"
+                        Variant="Variant.Outlined"
+                        Placeholder="Search"
+                        Adornment="Adornment.Start"
+                        AdornmentIcon="@Icons.Material.Filled.Search"
+                        IconSize="Size.Medium"
+                        Class="mt-0 flex-grow-0"
+                        Immediate="true"
+                        ValueChanged="@OnSearch"/>
+                </MudItem>
+            </MudGrid>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                Address
+            </MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Address">@context.Value</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager/>
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+
+    private bool _initiallyLoaded;
+
+    private CloudedDbContext _dbContext = null!;
+    private MudTable<DomainEntity>? _table;
+    private string? _tableSearch;
+
+    protected override void OnInitialized()
+    {
+        _initiallyLoaded = true;
+        _dbContext = DbContextResolver.UseScopedContext<CloudedDbContext>();
+    }
+
+    private async Task<TableData<DomainEntity>> LoadData(TableState state)
+    {
+        var data = await _dbContext
+            .GetAll<DomainEntity>()
+            .Where(x => x.ProjectId == Project.Id && x.Value.Contains(_tableSearch ?? ""))
+            .OrderBy(x => x.Id)
+            .Take(state.PageSize)
+            .Skip(state.PageSize * state.Page)
+            .ToListAsync(CancellationToken);
+
+        var totalItems = await _dbContext
+            .GetAll<DomainEntity>()
+            .Where(x => x.ProjectId == Project.Id && x.Value.Contains(_tableSearch ?? ""))
+            .CountAsync(CancellationToken);
+
+        return new TableData<DomainEntity>
+        {
+            TotalItems = totalItems,
+            Items = data
+        };
+    }
+
+    private void OnSearch(string? text)
+    {
+        _tableSearch = text?.Length < 3 ? null : text;
+        _table?.ReloadServerData();
+    }
+
+    private void RowClick(TableRowClickEventArgs<DomainEntity> args)
+    {
+        NavigationManager.NavigateTo(DomainService.GetDetailRoute(ProjectId, args.Item.Id));
+    }
+
+}

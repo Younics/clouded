@@ -1,0 +1,145 @@
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
+@using Clouded.Auth.Provider.DataSources.Interfaces
+@using Clouded.Auth.Provider.Dictionaries
+@inject ApplicationOptions Options
+@inject IUserDataSource UserDataSource
+
+<MudTable
+    T="UserDictionary"
+    Outlined="false"
+    Class="py-1 px-2"
+    Bordered="false"
+    Items="@SelectedUsers"
+    Hover="false">
+    <NoRecordsContent>
+        <MudText Typo="Typo.caption" Class="d-flex justify-center align-center pa-4">
+            <MudIcon Class="pr-1" Color="Color.Info" Icon="@Icons.Material.Filled.Info"></MudIcon>
+            There are no users in this organization
+        </MudText>
+    </NoRecordsContent>
+    <ToolBarContent>
+        <MudGrid
+            Spacing="1"
+            Justify="Justify.SpaceBetween"
+            Class="flex-1 align-center rounded mud-background"
+            style="margin: 0 -8px 0 -16px">
+            <MudItem Class="d-flex align-center ml-2 flex-nowrap">
+                <MudIcon Icon="@Icons.Material.Outlined.TableChart"/>
+                <MudText Class="px-4" Typo="Typo.h6">Users</MudText>
+            </MudItem>
+            <MudItem Class="d-flex align-center gap-2" md="8" lg="5">
+                <MudAutocomplete
+                    Margin="Margin.Dense"
+                    Adornment="Adornment.Start"
+                    AdornmentIcon="@Icons.Material.Filled.Search"
+                    T="UserDictionary"
+                    placeholder="Add new user to organization (min. 3 characters)"
+                    @bind-Value="_currentUser"
+                    Variant="Variant.Outlined"
+                    ToStringFunc="@UserConverter"
+                    SearchFunc="@UserSearch"
+                    ResetValueOnEmptyText="true"
+                    CoerceText="true"/>
+                <MudButton
+                    ButtonType="ButtonType.Submit"
+                    StartIcon="@Icons.Material.Filled.Add"
+                    Variant="Variant.Outlined"
+                    Color="Color.Primary"
+                    OnClick="Add">
+                    Add
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </ToolBarContent>
+    <ColGroup>
+        <col/>
+        <col/>
+        <col style="width: 10%;"/>
+    </ColGroup>
+    <HeaderContent>
+        @foreach (var column in _userColumns)
+        {
+            <MudTh>@column.Name</MudTh>
+        }
+        <MudTh/>
+    </HeaderContent>
+    <RowTemplate>
+        @foreach (var column in _userColumns)
+        {
+            <MudTd DataLabel="@column.Name">@context[column.Name]</MudTd>
+        }
+        <MudTd Style="text-align: end">
+            <MudIconButton
+                Icon="@Icons.Material.Filled.Delete"
+                Color="Color.Tertiary"
+                Size="Size.Medium"
+                OnClick="() => Remove(context)"/>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+
+@code {
+
+    [Parameter]
+    public required object? OrganizationId { get; set; }
+
+    [Parameter]
+    public required IEnumerable<UserDictionary> SelectedUsers { get; set; }
+
+    [Parameter]
+    public EventCallback<IEnumerable<UserDictionary>>? SelectedUsersChanged { get; set; }
+
+    private IEnumerable<ColumnResult> _userColumns = Array.Empty<ColumnResult>();
+    private UserDictionary? _currentUser;
+
+    protected override void OnInitialized()
+    {
+        _userColumns = UserDataSource
+            .GetEntityColumns(true);
+    }
+
+    private Func<UserDictionary?, string> UserConverter =>
+        user =>
+            user != null
+                ? string.Join(", ", user.Identities)
+                : string.Empty;
+
+    private Task<IEnumerable<UserDictionary>> UserSearch(string? value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length < 3)
+            return Task.FromResult(Enumerable.Empty<UserDictionary>());
+
+        return Task.FromResult(UserDataSource.EntitySearch(value));
+    }
+
+    private void Add()
+    {
+        if (_currentUser == null)
+            return;
+
+        var alreadyPresent = SelectedUsers.Any
+            (
+                selectedUser => selectedUser.Id.Equals(_currentUser.Id)
+            );
+
+        if (alreadyPresent)
+            return;
+
+        SelectedUsers = SelectedUsers.Append(_currentUser);
+        SelectedUsersChanged?.InvokeAsync(SelectedUsers);
+
+        _currentUser = null;
+    }
+
+    private void Remove(UserDictionary user)
+    {
+        SelectedUsers = SelectedUsers.Where
+            (
+                selectedUser => selectedUser.Id != user.Id
+            );
+        SelectedUsersChanged?.InvokeAsync(SelectedUsers);
+    }
+
+}

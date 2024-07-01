@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Authors>Younics, s.r.o.</Authors>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <RepositoryUrl>https://github.com/Younics/clouded</RepositoryUrl>
+    <PackageVersion>1.0.6</PackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Clouded.Shared\Clouded.Shared.csproj" />
+    <ProjectReference Include="..\Clouded.Function.Shared\Clouded.Function.Shared.csproj" />
+  </ItemGroup>
+</Project>

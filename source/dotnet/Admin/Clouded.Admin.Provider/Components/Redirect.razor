@@ -1,0 +1,11 @@
+@inject NavigationManager NavManager
+
+@code {
+    [Parameter]
+    public string? To { get; set; }
+    
+    protected override void OnInitialized()
+    {
+        if (To != null) NavManager.NavigateTo(To);
+    }
+}

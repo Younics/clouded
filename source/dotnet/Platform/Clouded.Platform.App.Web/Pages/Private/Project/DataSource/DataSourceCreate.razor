@@ -1,0 +1,42 @@
+﻿@using Clouded.Platform.Database.Entities.Clouded
+@using Clouded.Platform.App.Web.Services.Interfaces
+@inherits CancellableComponentBase
+@page "/projects/{ProjectId}/datasources/create"
+@inject IDataSourceService DataSourceService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<PageTitle>@Project.Name | Datasources - Create</PageTitle>
+
+<DataSourceForm Readonly="false" Title="Create new datasource" Model="_input" OnValidSubmit="OnValidSubmit" ProjectId="@ProjectId" />
+
+@code
+{
+    [Parameter]
+    public string ProjectId { get; set; } = null!;
+    
+    [CascadingParameter(Name = "Project")]
+    public ProjectEntity Project { get; set; } = null!;
+    
+    private readonly DataSourceInput _input = new();
+
+    protected override void OnInitialized()
+    {
+        _input.ProjectId = Project.Id;
+    }
+
+    private async Task OnValidSubmit()
+    {
+        var dataSource = await DataSourceService.CreateAsync(_input, cancellationToken: CancellationToken);
+
+        if (dataSource != null)
+        {
+            Snackbar.Add("Data source created", Severity.Success);
+            NavigationManager.NavigateTo($"/projects/{ProjectId}/datasources");
+        }
+        else
+        {
+            Snackbar.Add("There was an error creating data source");
+        }
+    }
+}

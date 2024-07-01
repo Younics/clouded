@@ -1,0 +1,8 @@
+<MudStack Row="@false">
+    <MudText>
+        <strong >Validation Hook</strong> is executed as first of operation. If any of validation fails the call is canceled. All validations are executed as bulk so validation response is merged from all validation hooks result.
+    </MudText>
+    <MudText><strong >Before Hook</strong> is executed if validation of operation passed. Exceptions from the hooks dont block the operation.</MudText>
+    <MudText><strong >Input Hook</strong> is executed before operation and modify the data passed to the operation itself.</MudText>
+    <MudText><strong >After Hook</strong> is executed if operation was successful. Exceptions from the operation itself stops the execution because of raised exception so the hook won't be called.</MudText>
+</MudStack>
