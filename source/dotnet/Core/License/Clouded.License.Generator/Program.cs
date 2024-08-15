@@ -4,7 +4,7 @@ using System.Diagnostics;
 using Clouded.Core.License;
 
 var appType = "Auth";
-var expiresIn = DateTime.UtcNow.AddYears(10);
+var expiresIn = DateTime.UtcNow.AddYears(2);
 
 // var key = LicenseTool.GenerateRsaKey();
 var privateKey =

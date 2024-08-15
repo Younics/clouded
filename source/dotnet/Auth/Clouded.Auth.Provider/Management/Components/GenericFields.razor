@@ -9,9 +9,10 @@
                 <MudItem xs="12">
                     <GenericField
                         Name="@column.Name"
-                        Mode="@(column.Name == IdColumnName ? EGenericFieldMode.View : Mode)"
+                        Mode="@(column.Name == IdColumnName || column.IsGenerated ? EGenericFieldMode.View : Mode)"
                         IsPassword="@(column.Name == PasswordColumnName)"
                         Type="@(column.Type)"
+                        Column="@column"
                         @bind-Value="Data[column.Name]"/>
                 </MudItem>
             }

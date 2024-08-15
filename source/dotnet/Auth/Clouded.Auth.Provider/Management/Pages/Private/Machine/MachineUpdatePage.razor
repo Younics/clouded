@@ -223,6 +223,13 @@
 
     protected override void OnInitialized()
     {
+        LoadData();
+
+        _initiallyLoaded = true;
+    }
+
+    private void LoadData()
+    {
         _machine = MachineDataSource.EntityFindById(MachineId);
         _machineMetaData = MachineDataSource.EntityMetaData(MachineId);
 
@@ -235,8 +242,6 @@
             _permissions = PermissionDataSource.Entities();
 
         _domains = DomainDataSource.Entities();
-
-        _initiallyLoaded = true;
     }
 
     private void LoadMachineRolesAndPermissions()
@@ -421,6 +426,8 @@
         MachineDataSource.EntityUpdate(MachineId, _machine);
 
         Snackbar.Add("Updated", Severity.Success);
+        
+        LoadData();
     }
 
     private void Delete()

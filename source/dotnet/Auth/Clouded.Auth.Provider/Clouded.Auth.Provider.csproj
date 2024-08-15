@@ -33,6 +33,7 @@
     <ProjectReference Include="..\..\Core\Clouded.Core.License\Clouded.Core.License.csproj" />
     <ProjectReference Include="..\..\Core\DataSource\Clouded.Core.DataSource.Api\Clouded.Core.DataSource.Api.csproj" />
     <ProjectReference Include="..\..\Core\DataSource\Clouded.Core.DataSource.Shared\Clouded.Core.DataSource.Shared.csproj" />
+    <ProjectReference Include="..\..\Core\License\Clouded.Core.License\Clouded.Core.License.csproj" />
     <ProjectReference Include="..\..\Core\Mail\Clouded.Core.Mail.Library\Clouded.Core.Mail.Library.csproj" />
     <ProjectReference Include="..\..\Function\Clouded.Function.Library\Clouded.Function.Library.csproj" />
     <ProjectReference Include="..\..\Function\Clouded.Function.Shared\Clouded.Function.Shared.csproj" />

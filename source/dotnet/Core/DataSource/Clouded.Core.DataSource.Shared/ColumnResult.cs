@@ -13,6 +13,7 @@ public class ColumnResult
     public bool IsNullable { get; init; }
     public bool IsPrimary { get; init; }
     public bool IsAutoIncrement { get; init; }
+    public bool IsGenerated { get; init; }
     public int? MaxLength { get; init; }
     public bool IsForeignKey { get; init; }
     public RelationResult? InsideRelation { get; init; }

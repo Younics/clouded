@@ -70,10 +70,15 @@
 
     protected override void OnInitialized()
     {
-        _permissionColumns = PermissionDataSource.GetEntityColumns();
-        _permission = PermissionDataSource.EntityFindById(PermissionId);
+        LoadData();
 
         _initiallyLoaded = true;
+    }
+
+    private void LoadData()
+    {
+        _permissionColumns = PermissionDataSource.GetEntityColumns();
+        _permission = PermissionDataSource.EntityFindById(PermissionId);
     }
 
     private void Update()
@@ -81,6 +86,8 @@
         PermissionDataSource.EntityUpdate(PermissionId, _permission);
 
         Snackbar.Add("Updated", Severity.Success);
+        
+        LoadData();
     }
 
     private void Delete()

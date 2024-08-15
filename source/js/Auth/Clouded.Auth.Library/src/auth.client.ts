@@ -106,7 +106,7 @@ export class AuthClient extends BaseClient {
 
   public forgotPassword(identity: string): Promise<boolean> {
     return this.httpClient
-      .post('/v1/oauth/forgot-password', identity)
+      .post('/v1/oauth/forgot-password', { identity })
       .then((response) => response.status === 200);
   }
 

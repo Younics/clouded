@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS base
+﻿FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
 RUN apt-get update
 RUN apt-get install --no-install-recommends -y curl gnupg lsb-release
@@ -16,7 +16,7 @@ RUN apt-get clean all
 
 ENV PG_DIR=/usr/lib/postgresql
 
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY ["Clouded.Shared/Clouded.Shared.csproj", "Clouded.Shared/Clouded.Shared.csproj"]
 COPY ["Core/Repository/Clouded.Core.Repository/Clouded.Core.Repository.csproj", "Core/Repository/Clouded.Core.Repository/Clouded.Core.Repository.csproj"]

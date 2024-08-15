@@ -3,9 +3,8 @@ import { ErrorOutput } from '../dto/output/error.output';
 
 const client = new AuthClient(
   'http://localhost:8001',
-  'GXvxVmRpZouoT5sQMews7mpP9duBAkGGmrr2jsUJ8JbF3w7pDqmEbFwQ3f5qAa73ATdfmEKiJjDq6qdr2fmQ8p2gthDg4RujapA9atKTjhxQ888taYkkgZ3fP5KSB5nh',
-  'asdasd',
-  'asdasda',
+  'Q8zaz9MGErvY9mG7krKsV395dogXV77Y638560341163111220ddsLQplSgoSPkgS5Tu2rlhJdX5UcRLO5',
+  'oDsxRBr7BTH33Ko0L5RCxm5eHvXLPZxBabTTOCClsTcvs0Zk',
 );
 
 describe('auth token', () => {
@@ -13,8 +12,6 @@ describe('auth token', () => {
     const { data: result } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
 
     expect(result).toBeDefined();
@@ -28,9 +25,6 @@ describe('auth token', () => {
       await client.token({
         identity: 'test@test.sk',
         password: 'qwertyk',
-        apiKey:
-          'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-        secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
       });
     } catch (error) {
       err = error as ErrorOutput;
@@ -48,8 +42,6 @@ describe('auth refresh token', () => {
     const { data: tokens } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
     const { data: result } = await client.tokenRefresh({
       accessToken: tokens.accessToken.token,
@@ -65,8 +57,6 @@ describe('auth refresh token', () => {
     const { data: tokens } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
 
     let err = null;
@@ -89,8 +79,6 @@ describe('auth revoke token', () => {
     const { data: tokens } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
     const result = await client.tokenRevoke({
       refreshToken: tokens.refreshToken.token,
@@ -105,8 +93,6 @@ describe('auth revoke token', () => {
     const { data: tokens } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
 
     let err = null;
@@ -129,8 +115,6 @@ describe('auth validate token', () => {
     const { data: tokens } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
     const { data: result } = await client.validate({ accessToken: tokens.accessToken.token });
 
@@ -143,8 +127,6 @@ describe('auth validate token', () => {
     const { data: tokens } = await client.token({
       identity: 'test@test.sk',
       password: 'qwerty',
-      apiKey: 'Tah8AXZrehF8dyONdvJ5RZHy41VxnOuz638152701917310440ZB53NUhyHvKXg1YaPTN7JB784aqVJHxb',
-      secretKey: 'h6LSKPl9Dc9D8TN1MCNRHFhMXtos6MbvZw4ZEWZQRf9icKyL',
     });
 
     let err = null;

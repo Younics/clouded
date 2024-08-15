@@ -1,8 +1,8 @@
 @page "/management/domains/{DomainId}"
-@using Clouded.Auth.Provider.Options
-@using Clouded.Core.DataSource.Shared
 @using Clouded.Auth.Provider.DataSources.Interfaces
 @using Clouded.Auth.Provider.Dictionaries
+@using Clouded.Auth.Provider.Options
+@using Clouded.Core.DataSource.Shared
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject ApplicationOptions Options
@@ -70,10 +70,15 @@
 
     protected override void OnInitialized()
     {
-        _domainColumns = DomainDataSource.GetEntityColumns();
-        _domain = DomainDataSource.EntityFindById(DomainId);
+        LoadData();
 
         _initiallyLoaded = true;
+    }
+
+    private void LoadData()
+    {
+        _domainColumns = DomainDataSource.GetEntityColumns();
+        _domain = DomainDataSource.EntityFindById(DomainId);
     }
 
     private void Update()
@@ -81,6 +86,8 @@
         DomainDataSource.EntityUpdate(DomainId, _domain);
 
         Snackbar.Add("Updated", Severity.Success);
+        
+        LoadData();
     }
 
     private void Delete()

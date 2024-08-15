@@ -22,7 +22,7 @@ public interface IAuthService
 
     public void ResetPassword(PasswordResetInput input);
     public IEnumerable<string> Permissions(OAuthAccessTokenInput input);
-    public MachineDictionary? CheckMachineKeysInput(OAuthMachineKeysInput input);
+    public MachineDictionary? CheckMachineKeysInput(OAuthMachineKeysInput input, object? userId);
 
     public OAuthOutput FacebookToken(OAuthSocialInput input);
     public Task<Dictionary<string, object?>> FacebookMe(string code);

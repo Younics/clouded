@@ -15,7 +15,7 @@
     <MudField
         Label="@Name.ToReadCase()"
         ReadOnly="true"
-        HelperText="Read only attribute"
+        HelperText="@(Column.IsGenerated ? "Generated attribute":"Read only attribute")"
         Variant="Variant.Outlined">
         @Value
     </MudField>
@@ -232,6 +232,9 @@ else
 
     [Parameter]
     public EColumnType Type { get; set; }
+
+    [Parameter]
+    public ColumnResult Column { get; set; }
 
     [Parameter]
     public object? Value { get; set; }

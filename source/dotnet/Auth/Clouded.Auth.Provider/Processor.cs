@@ -28,6 +28,12 @@ public static class Processor
         {
             var column = columnsArray.FirstOrDefault(x => x.Name == pair.Key);
 
+            if (column != null && (column.IsGenerated || column.IsAutoIncrement))
+            {
+                data.Remove(pair.Key);
+                continue;
+            }
+
             data[pair.Key] =
                 column != null ? pair.Value.Transform(column.Type) : pair.Value.Transform();
         }
@@ -116,6 +122,8 @@ public static class Processor
         if (value == null)
             return null;
 
+        if (Guid.TryParse(value.ToString(), out var guidValue))
+            return guidValue;
         if (short.TryParse(value.ToString(), out var shortValue))
             return shortValue;
         if (int.TryParse(value.ToString(), out var intValue))

@@ -1,6 +1,6 @@
 {
   "name": "@younics/clouded-auth-client",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Clouded auth client library",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

@@ -82,12 +82,17 @@
 
     protected override void OnInitialized()
     {
+        LoadData();
+
+        _initiallyLoaded = true;
+    }
+
+    private void LoadData()
+    {
         _organizationColumns = OrganizationDataSource.GetEntityColumns();
         _organization = OrganizationDataSource.EntityFindById(OrganizationId);
         _organizationUsers = OrganizationDataSource.OrganizationUsers(OrganizationId);
         _organizationMetaData = OrganizationDataSource.EntityMetaData(OrganizationId);
-        
-        _initiallyLoaded = true;
     }
 
     private void Update()
@@ -149,6 +154,8 @@
         OrganizationDataSource.EntityUpdate(OrganizationId, _organization);
 
         Snackbar.Add("Updated", Severity.Success);
+        
+        LoadData();
     }
 
     private void Delete()

@@ -19,6 +19,7 @@ using Clouded.Core.Mail.Library.Exceptions;
 using Clouded.Core.Mail.Library.Services;
 using Clouded.Results.Exceptions;
 using Flurl.Http;
+using Microsoft.IdentityModel.Tokens;
 using ApplicationOptions = Clouded.Auth.Provider.Options.ApplicationOptions;
 using NotSupportedException = Clouded.Results.Exceptions.NotSupportedException;
 
@@ -37,68 +38,6 @@ public class AuthService(
     private readonly MailOptions? _mailOptions = options.Clouded.Mail;
     private readonly SocialOptions _socialOptions = options.Clouded.Auth.Social;
     private readonly CloudedOptions _cloudedOptions = options.Clouded;
-
-    /// <summary>
-    /// </summary>
-    /// <param name="input"></param>
-    public OAuthOutput FacebookToken(OAuthSocialInput input)
-    {
-        var machine = CheckMachineKeysInput(input);
-
-        userDataSource.StoreUserFacebookCode(input.Code, input.UserId);
-        var userSupport = userDataSource.EntitySupportTable(input.UserId);
-
-        return GetOAuthOutput(input.UserId, machine, userSupport);
-    }
-
-    /// <summary>
-    ///
-    /// </summary>
-    /// <param name="code"></param>
-    /// <returns></returns>
-    /// <exception cref="Clouded.Results.Exceptions.NotSupportedException"></exception>
-    /// <exception cref="Clouded.Results.Exceptions.BadRequestException"></exception>
-    public async Task<Dictionary<string, object?>> FacebookMe(string code)
-    {
-        if (_socialOptions.Facebook == null)
-        {
-            throw new NotSupportedException();
-        }
-
-        var accessToken = await GetFacebookAccessToken(code);
-
-        IFlurlRequest request = new FlurlRequest(
-            $"https://graph.facebook.com/me?access_token={accessToken}"
-        );
-
-        var result = await request.GetJsonAsync<Dictionary<string, object?>>();
-        result.TryGetValue("id", out var userId);
-
-        IFlurlRequest userRequest = new FlurlRequest(
-            $"https://graph.facebook.com/v16.0/{userId}?access_token={accessToken}"
-        );
-
-        return await userRequest.GetJsonAsync<Dictionary<string, object?>>();
-    }
-
-    /// <summary>
-    ///
-    /// </summary>
-    /// <exception cref="Clouded.Results.Exceptions.NotSupportedException"></exception>
-    /// <returns>Facebook login URI</returns>
-    public String GetFacebookRedirectUrl()
-    {
-        if (_socialOptions.Facebook == null)
-        {
-            throw new NotSupportedException();
-        }
-
-        //https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
-        var redirectUrl =
-            $"https://www.facebook.com/v16.0/dialog/oauth?client_id={_socialOptions.Facebook.Key}&redirect_uri={GetFacebookInternalRedirectUrl()}&state={GetCsrfToken()}";
-
-        return redirectUrl;
-    }
 
     /// <summary>
     /// Validate access token
@@ -122,12 +61,12 @@ public class AuthService(
     /// <exception cref="ColumnNotFoundException"></exception>
     public OAuthOutput Token(OAuthInput input)
     {
-        var machine = CheckMachineKeysInput(input);
-
         var user = userDataSource.EntityFindByIdentity(input.Identity);
 
         if (!user.Any())
             throw new BadCredentialsException();
+        
+        var machine = CheckMachineKeysInput(input, user.Id);
 
         var hashedPassword = user[_identityOptions.User.ColumnPassword];
 
@@ -200,8 +139,6 @@ public class AuthService(
     {
         userDataSource.RefreshTokenDeleteExpired();
 
-        var machine = CheckMachineKeysInput(input);
-
         var refreshToken = userDataSource.RefreshTokenFindValid(input.RefreshToken);
         if (!refreshToken.Any())
             throw new InvalidTokenException();
@@ -210,6 +147,8 @@ public class AuthService(
         if (userId == null)
             throw new InvalidTokenException();
 
+        var machine = CheckMachineKeysInput(input, userId);
+        
         var userSupport = userDataSource.EntitySupportTable(userId);
         var isBlocked = (bool)(
             userSupport.GetValueOrDefault(_identityOptions.User.Support.ColumnBlocked) ?? false
@@ -456,19 +395,43 @@ public class AuthService(
     }
 
     /// <summary>
-    ///
+    /// 
     /// </summary>
     /// <param name="input"></param>
+    /// <param name="userId"></param>
     /// <returns></returns>
     /// <exception cref="BadRequestException"></exception>
     /// <exception cref="UnauthorizedException"></exception>
-    public MachineDictionary CheckMachineKeysInput(OAuthMachineKeysInput input)
+    public MachineDictionary CheckMachineKeysInput(OAuthMachineKeysInput input, object? userId)
     {
         if (input.ApiKey == null || input.SecretKey == null)
             throw new BadRequestException();
 
         var machine = machineDataSource.MachineFindByKeys(input.ApiKey, input.SecretKey);
         CheckEntityFound(machine, "Machine");
+
+        var machineRoles = machineDataSource.MachineRoles(machine.Id).ToList();
+        if (!machineRoles.IsNullOrEmpty() && userId != null)
+        {
+            var user = userDataSource.EntityFindById(userId);
+            if (user.IsNullOrEmpty())
+            {
+                throw new BadRequestException();
+            }
+            
+            var userRoles = userDataSource.UserRoles(user.Id).ToList();
+
+            if (userRoles.IsNullOrEmpty())
+            {
+                throw new BadRequestException();
+            }
+
+            if (machineRoles.IntersectBy(userRoles.Select(x => x.Id), (y => y.Id)).IsNullOrEmpty())
+            {
+                // user roles and machine roles must have intersection
+                throw new BadRequestException();
+            }
+        }
 
         var domains = machineDataSource.MachineDomains(machine.Id);
         AppContext.CurrentHttpContext.Request.Headers.TryGetValue("Origin", out var origin);
@@ -489,6 +452,68 @@ public class AuthService(
         }
 
         return machine;
+    }
+
+    /// <summary>
+    /// </summary>
+    /// <param name="input"></param>
+    public OAuthOutput FacebookToken(OAuthSocialInput input)
+    {
+        var machine = CheckMachineKeysInput(input, input.UserId);
+
+        userDataSource.StoreUserFacebookCode(input.Code, input.UserId);
+        var userSupport = userDataSource.EntitySupportTable(input.UserId);
+
+        return GetOAuthOutput(input.UserId, machine, userSupport);
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <param name="code"></param>
+    /// <returns></returns>
+    /// <exception cref="Clouded.Results.Exceptions.NotSupportedException"></exception>
+    /// <exception cref="Clouded.Results.Exceptions.BadRequestException"></exception>
+    public async Task<Dictionary<string, object?>> FacebookMe(string code)
+    {
+        if (_socialOptions.Facebook == null)
+        {
+            throw new NotSupportedException();
+        }
+
+        var accessToken = await GetFacebookAccessToken(code);
+
+        IFlurlRequest request = new FlurlRequest(
+            $"https://graph.facebook.com/me?access_token={accessToken}"
+        );
+
+        var result = await request.GetJsonAsync<Dictionary<string, object?>>();
+        result.TryGetValue("id", out var userId);
+
+        IFlurlRequest userRequest = new FlurlRequest(
+            $"https://graph.facebook.com/v16.0/{userId}?access_token={accessToken}"
+        );
+
+        return await userRequest.GetJsonAsync<Dictionary<string, object?>>();
+    }
+
+    /// <summary>
+    ///
+    /// </summary>
+    /// <exception cref="Clouded.Results.Exceptions.NotSupportedException"></exception>
+    /// <returns>Facebook login URI</returns>
+    public String GetFacebookRedirectUrl()
+    {
+        if (_socialOptions.Facebook == null)
+        {
+            throw new NotSupportedException();
+        }
+
+        //https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow/
+        var redirectUrl =
+            $"https://www.facebook.com/v16.0/dialog/oauth?client_id={_socialOptions.Facebook.Key}&redirect_uri={GetFacebookInternalRedirectUrl()}&state={GetCsrfToken()}";
+
+        return redirectUrl;
     }
 
     /// <summary>
@@ -572,7 +597,7 @@ public class AuthService(
     /// <param name="input"></param>
     public OAuthOutput GoogleToken(OAuthSocialInput input)
     {
-        var machine = CheckMachineKeysInput(input);
+        var machine = CheckMachineKeysInput(input, input.UserId);
 
         userDataSource.StoreUserGoogleCode(input.Code, input.UserId);
         var userSupport = userDataSource.EntitySupportTable(input.UserId);
@@ -590,7 +615,7 @@ public class AuthService(
     /// <param name="input"></param>
     public OAuthOutput AppleToken(OAuthSocialInput input)
     {
-        var machine = CheckMachineKeysInput(input);
+        var machine = CheckMachineKeysInput(input, input.UserId);
 
         userDataSource.StoreUserAppleCode(input.Code, input.UserId);
         var userSupport = userDataSource.EntitySupportTable(input.UserId);
@@ -617,18 +642,9 @@ public class AuthService(
         return Task.FromResult(
             new Dictionary<string, object?>
             {
-                {
-                    "email",
-                    userAppleData.GetValueOrDefault(_identityOptions.User.AppleData.ColumnEmail)
-                },
-                {
-                    "firstName",
-                    userAppleData.GetValueOrDefault(_identityOptions.User.AppleData.ColumnFirstName)
-                },
-                {
-                    "lastName",
-                    userAppleData.GetValueOrDefault(_identityOptions.User.AppleData.ColumnLastName)
-                },
+                { "email", userAppleData.GetValueOrDefault(_identityOptions.User.AppleData.ColumnEmail) },
+                { "firstName", userAppleData.GetValueOrDefault(_identityOptions.User.AppleData.ColumnFirstName) },
+                { "lastName", userAppleData.GetValueOrDefault(_identityOptions.User.AppleData.ColumnLastName) },
             }
         );
     }
@@ -648,11 +664,7 @@ public class AuthService(
             cloudedData: new { metaData }
         );
 
-        return new OAuthOutput
-        {
-            AccessToken = jwtToken,
-            RefreshToken = RefreshTokenGenerateAndSave(userId)
-        };
+        return new OAuthOutput { AccessToken = jwtToken, RefreshToken = RefreshTokenGenerateAndSave(userId) };
     }
 
     private String GetFacebookInternalRedirectUrl()

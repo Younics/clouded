@@ -178,6 +178,13 @@
         if (string.IsNullOrEmpty(UserId))
             return;
 
+        LoadData();
+
+        _initiallyLoaded = true;
+    }
+
+    private void LoadData()
+    {
         _userColumns = UserDataSource.GetEntityColumns();
         _user = UserDataSource.EntityFindById(UserId);
         _user.Password = null;
@@ -194,8 +201,6 @@
 
         if (Options.Clouded.Auth.Identity.Permission != null)
             _permissions = PermissionDataSource.Entities();
-
-        _initiallyLoaded = true;
     }
 
     private void LoadUserRolesAndPermissions()
@@ -343,6 +348,8 @@
         _user.Password = null;
 
         Snackbar.Add("Updated", Severity.Success);
+        
+        LoadData();
     }
 
     private void Delete()

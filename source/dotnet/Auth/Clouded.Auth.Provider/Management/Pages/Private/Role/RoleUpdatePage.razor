@@ -20,7 +20,7 @@
             <MudPaper Class="pa-2">
                 <MudText Class="mud-background rounded px-4 py-1 mb-2" Typo="Typo.h6">Role attributes</MudText>
                 <GenericFields
-                  TDictionary="RoleDictionary"
+                    TDictionary="RoleDictionary"
                     Columns="_roleColumns"
                     IdColumnName="@Options.Clouded.Auth.Identity.Role!.ColumnId"
                     @bind-Data="_role"/>
@@ -74,8 +74,7 @@
 
 @code {
 
-    [Parameter]
-    public string? RoleId { get; set; }
+    [Parameter] public string? RoleId { get; set; }
 
     private bool _initiallyLoaded;
 
@@ -88,6 +87,13 @@
 
     protected override void OnInitialized()
     {
+        LoadData();
+
+        _initiallyLoaded = true;
+    }
+
+    private void LoadData()
+    {
         _roleColumns = RoleDataSource.GetEntityColumns();
         _role = RoleDataSource.EntityFindById(RoleId);
 
@@ -96,13 +102,11 @@
             _permissions = PermissionDataSource.Entities();
             _rolePermissions = RoleDataSource.RolePermissions(RoleId);
         }
-
-        _initiallyLoaded = true;
     }
 
     private void Update()
     {
-    // Permissions
+        // Permissions
         if (Options.Clouded.Auth.Identity.Permission != null)
         {
             var rolePreviousPermissions = RoleDataSource
@@ -114,9 +118,9 @@
                 (
                     previousPermission =>
                         _rolePermissions.All
-                            (
-                                permission => !permission.Id.Equals(previousPermission.Id)
-                            )
+                        (
+                            permission => !permission.Id.Equals(previousPermission.Id)
+                        )
                 )
                 .Select
                 (
@@ -127,10 +131,10 @@
             if (rolePermissionIdsToBeRemoved.Any())
             {
                 RoleDataSource.RolePermissionsRemove
-                    (
-                        RoleId,
-                        rolePermissionIdsToBeRemoved
-                    );
+                (
+                    RoleId,
+                    rolePermissionIdsToBeRemoved
+                );
             }
 
             var rolePermissionIdsToBeAdded = _rolePermissions
@@ -138,9 +142,9 @@
                 (
                     permission =>
                         rolePreviousPermissions.All
-                            (
-                                previousPermission => !previousPermission.Id.Equals(permission.Id)
-                            )
+                        (
+                            previousPermission => !previousPermission.Id.Equals(permission.Id)
+                        )
                 )
                 .Select
                 (
@@ -151,16 +155,18 @@
             if (rolePermissionIdsToBeAdded.Any())
             {
                 RoleDataSource.RolePermissionsAdd
-                    (
-                        RoleId,
-                        rolePermissionIdsToBeAdded
-                    );
+                (
+                    RoleId,
+                    rolePermissionIdsToBeAdded
+                );
             }
         }
 
         RoleDataSource.EntityUpdate(RoleId, _role);
 
         Snackbar.Add("Updated", Severity.Success);
+
+        LoadData();
     }
 
     private void Delete()

@@ -100,9 +100,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "API", "API", "{5FCC8AC6-53E
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "License", "License", "{537A3444-8456-4D94-9DA9-FB70A61A2C0C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clouded.Core.License", "Core\Clouded.Core.License\Clouded.Core.License.csproj", "{06C3D4CB-AC51-4AAA-AA00-A834D345C45B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clouded.Core.License", "Core\License\Clouded.Core.License\Clouded.Core.License.csproj", "{06C3D4CB-AC51-4AAA-AA00-A834D345C45B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clouded.License.Generator", "Core\Clouded.License.Generator\Clouded.License.Generator.csproj", "{AD546444-A13D-41B8-BA74-B9BAE287D59D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Clouded.License.Generator", "Core\License\Clouded.License.Generator\Clouded.License.Generator.csproj", "{AD546444-A13D-41B8-BA74-B9BAE287D59D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

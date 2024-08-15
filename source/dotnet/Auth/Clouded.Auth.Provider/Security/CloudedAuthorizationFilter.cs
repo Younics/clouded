@@ -38,7 +38,8 @@ public class CloudedAuthorizationFilter(ApplicationOptions options, IAuthService
         try
         {
             var machine = authService.CheckMachineKeysInput(
-                new OAuthMachineKeysInput { ApiKey = apiKey, SecretKey = secretKey }
+                new OAuthMachineKeysInput { ApiKey = apiKey, SecretKey = secretKey },
+                null
             );
 
             if (machine == null)
