@@ -1,4 +1,7 @@
 ﻿using Clouded.Auth.Provider.DataSources.Interfaces;
+using Microsoft.OpenApi.Extensions;
+using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.Swagger;
 
 namespace Clouded.Auth.Provider;
 
@@ -30,5 +33,13 @@ public static class ApplicationExtensions
         roleDataSourceService.SupportTableSetup();
 
         permissionDataSourceService.TableVerification();
+    }
+    
+    public static void SaveSwaggerJson(this IServiceProvider provider)
+    {
+        ISwaggerProvider sw = provider.GetRequiredService<ISwaggerProvider>();
+        OpenApiDocument doc = sw.GetSwagger("v1", null, "/");
+        string swaggerFile = doc.SerializeAsYaml(Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_0);
+        File.WriteAllText("swaggerfile.yml", swaggerFile);
     }
 }

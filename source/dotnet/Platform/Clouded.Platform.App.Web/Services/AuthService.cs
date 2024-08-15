@@ -1,4 +1,5 @@
-﻿using Clouded.Auth.Client;
+﻿using System.Security.Cryptography;
+using Clouded.Auth.Client;
 using Clouded.Auth.Shared.Token.Input;
 using Clouded.Platform.App.Web.Dtos;
 using Clouded.Platform.App.Web.Options;
@@ -34,6 +35,7 @@ public class AuthService(
             options.Clouded.Auth.ApiKey,
             options.Clouded.Auth.SecretKey
         );
+
     private readonly HarborClient _harborClient =
         new(
             options.Clouded.Harbor.ServerUrl,
@@ -215,7 +217,7 @@ public class AuthService(
             UserId = user.Id,
             HarborUser = harborUserName,
             // TODO: Ensure that password (minimum of 8 characters) contains 1 Upper, 1 Number, 1 Special
-            HarborPassword = Generator.RandomString(32),
+            HarborPassword = BitConverter.ToInt32(RandomNumberGenerator.GetBytes(sizeof(int))).ToString(),
             HarborProject = $"clouded-repository.{harborUserName}",
         };
         await context.CreateAsync(userIntegration, cancellationToken);
@@ -245,11 +247,7 @@ public class AuthService(
 
         await _harborClient.Project.AddMember(
             user.Integration.HarborProject,
-            new ProjectMemberAddInput
-            {
-                Member = new MemberInput { UserName = harborUserName },
-                Role = ERole.Guest
-            },
+            new ProjectMemberAddInput { Member = new MemberInput { UserName = harborUserName }, Role = ERole.Guest },
             cancellationToken
         );
 

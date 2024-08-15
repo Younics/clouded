@@ -348,6 +348,8 @@ app.UseHealthChecks(
     new HealthCheckOptions { Predicate = r => r.Tags.Contains("database") }
 );
 
+app.Services.SaveSwaggerJson();
+
 app.MigrateDatabase();
 
 app.Run();
