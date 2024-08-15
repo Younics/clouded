@@ -15,4 +15,10 @@
         </variables>
     </build-profile>
 
+    <footer>
+        <copyright>2024 Younics s.r.o.</copyright>
+        <link href="https://github.com/Younics/clouded/blob/main/.github/CONTRIBUTING.md">Contribution</link>
+        <link href="https://younics.com">Younics</link>
+    </footer>
+
 </buildprofiles>
