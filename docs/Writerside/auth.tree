@@ -7,4 +7,14 @@
                  start-page="auth-provider.md">
 
     <toc-element topic="auth-provider.md"/>
+    <toc-element topic="API-Reference.md">
+        <toc-element topic="OAuth.topic"/>
+        <toc-element topic="Social.topic"/>
+        <toc-element topic="Users.topic"/>
+        <toc-element topic="Organizations.topic"/>
+        <toc-element topic="Roles.topic"/>
+        <toc-element topic="Permissions.topic"/>
+        <toc-element topic="Domains.topic"/>
+        <toc-element topic="Machines.topic"/>
+    </toc-element>
 </instance-profile>

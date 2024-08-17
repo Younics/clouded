@@ -25,12 +25,12 @@
     <PackageReference Include="MudBlazor" Version="6.19.1" />
     <PackageReference Include="Serilog.Expressions" Version="4.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.7.0" />
     <PackageReference Include="TextCopy" Version="6.2.1" />
   </ItemGroup>
   
   <ItemGroup>
     <ProjectReference Include="..\..\Clouded.Results\Clouded.Results.csproj" />
-    <ProjectReference Include="..\..\Core\Clouded.Core.License\Clouded.Core.License.csproj" />
     <ProjectReference Include="..\..\Core\DataSource\Clouded.Core.DataSource.Api\Clouded.Core.DataSource.Api.csproj" />
     <ProjectReference Include="..\..\Core\DataSource\Clouded.Core.DataSource.Shared\Clouded.Core.DataSource.Shared.csproj" />
     <ProjectReference Include="..\..\Core\License\Clouded.Core.License\Clouded.Core.License.csproj" />

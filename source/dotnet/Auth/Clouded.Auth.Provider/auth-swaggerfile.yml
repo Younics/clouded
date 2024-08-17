@@ -1,0 +1,2937 @@
+openapi: 3.0.1
+info:
+  title: Clouded Auth Provider API
+  description: Clouded Auth Provider API
+  termsOfService: https://clouded.com/terms
+  contact:
+    name: Email
+    email: support@clouded.com
+  version: v1
+servers:
+  - url: /
+paths:
+  /v1/domains:
+    get:
+      tags:
+        - Domain
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDictionaryIEnumerableCloudedOkResult'
+    post:
+      tags:
+        - Domain
+      summary: Create entity
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDictionaryCloudedOkResult'
+  /v1/domains/paginated:
+    get:
+      tags:
+        - Domain
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDictionaryPaginatedCloudedOkResult'
+  '/v1/domains/by_identity/{identity}':
+    get:
+      tags:
+        - Domain
+      summary: ''
+      parameters:
+        - name: identity
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withMachines
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDictionaryCloudedOkResult'
+  '/v1/domains/{id}':
+    get:
+      tags:
+        - Domain
+      summary: Get entity by id
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withMachines
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDictionaryCloudedOkResult'
+    patch:
+      tags:
+        - Domain
+      summary: Update entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainDictionaryCloudedOkResult'
+    delete:
+      tags:
+        - Domain
+      summary: Delete entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/domains/{id}/machines/add':
+    put:
+      tags:
+        - Domain
+      summary: Attach machine to domain
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainMachineInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/DomainMachineInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/DomainMachineInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/domains/{id}/machines/remove':
+    put:
+      tags:
+        - Domain
+      summary: Detach machine from domain
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainMachineInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/DomainMachineInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/DomainMachineInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/machines:
+    get:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: roleIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: permissionIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineDictionaryIEnumerableCloudedOkResult'
+    post:
+      tags:
+        - Machine
+      summary: Create entity
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineDictionaryCloudedOkResult'
+  /v1/machines/paginated:
+    get:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: roleIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: permissionIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: page
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineDictionaryPaginatedCloudedOkResult'
+  '/v1/machines/by_identity/{identity}':
+    get:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: identity
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withRoles
+          in: query
+          description: ''
+          schema:
+            type: boolean
+        - name: withPermissions
+          in: query
+          description: ''
+          schema:
+            type: boolean
+        - name: withDomains
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineDictionaryCloudedOkResult'
+  '/v1/machines/{id}':
+    get:
+      tags:
+        - Machine
+      summary: Get entity by id
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withRoles
+          in: query
+          description: ''
+          schema:
+            type: boolean
+        - name: withPermissions
+          in: query
+          description: ''
+          schema:
+            type: boolean
+        - name: withDomains
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineDictionaryCloudedOkResult'
+    patch:
+      tags:
+        - Machine
+      summary: Update entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MachineDictionaryCloudedOkResult'
+    delete:
+      tags:
+        - Machine
+      summary: Delete entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/machines/{id}/roles/add':
+    put:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachineRoleInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/MachineRoleInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/MachineRoleInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/machines/{id}/roles/remove':
+    put:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachineRoleInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/MachineRoleInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/MachineRoleInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/machines/{id}/permissions/add':
+    put:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachinePermissionInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/MachinePermissionInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/MachinePermissionInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/machines/{id}/permissions/remove':
+    put:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachinePermissionInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/MachinePermissionInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/MachinePermissionInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/machines/{id}/domains/add':
+    put:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachineDomainInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/MachineDomainInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/MachineDomainInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/machines/{id}/domains/remove':
+    put:
+      tags:
+        - Machine
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MachineDomainInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/MachineDomainInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/MachineDomainInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/oauth/token/validate:
+    post:
+      tags:
+        - OAuth
+      summary: Validate access token
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthAccessTokenInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthValidateOutputCloudedOkResult'
+  /v1/oauth/token:
+    post:
+      tags:
+        - OAuth
+      summary: Authenticate user and return access/refresh token
+      requestBody:
+        description: Clouded.Auth.Shared.Token.Input.OAuthInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/oauth/token/revoke:
+    post:
+      tags:
+        - OAuth
+      summary: Revoke the refresh token.
+      requestBody:
+        description: Clouded.Auth.Shared.Token.Input.OAuthTokenRevokeInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthTokenRevokeInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedOkResult'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/oauth/token/refresh:
+    post:
+      tags:
+        - OAuth
+      summary: Refresh tokens.
+      requestBody:
+        description: Clouded.Auth.Shared.Token.Input.OAuthTokenRefreshInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthTokenRefreshInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/oauth/token/machine:
+    post:
+      tags:
+        - OAuth
+      summary: Get authentication token for machine/client
+      requestBody:
+        description: Clouded.Auth.Shared.Token.Input.OAuthTokenMachineInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthTokenMachineInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenOutputCloudedOkResult'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '501':
+          description: Not Implemented
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/oauth/forgot-password:
+    post:
+      tags:
+        - OAuth
+      summary: Forgot password request
+      requestBody:
+        description: Clouded.Auth.Shared.PasswordReset.ForgotPasswordInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedOkResult'
+        '422':
+          description: Unprocessable Content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/oauth/reset-password:
+    post:
+      tags:
+        - OAuth
+      summary: Reset password
+      requestBody:
+        description: Clouded.Auth.Shared.PasswordReset.PasswordResetInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedOkResult'
+  /v1/oauth/permissions:
+    post:
+      tags:
+        - OAuth
+      summary: Get permissions
+      requestBody:
+        description: Clouded.Auth.Shared.Token.Input.OAuthAccessTokenInput
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthAccessTokenInput'
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringIEnumerableCloudedOkResult'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/organizations:
+    get:
+      tags:
+        - Organization
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryIEnumerableCloudedOkResult'
+    post:
+      tags:
+        - Organization
+      summary: Create entity
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+  /v1/organizations/paginated:
+    get:
+      tags:
+        - Organization
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryPaginatedCloudedOkResult'
+  '/v1/organizations/by_identity/{identity}':
+    get:
+      tags:
+        - Organization
+      summary: ''
+      parameters:
+        - name: identity
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withUsers
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryCloudedOkResult'
+  '/v1/organizations/{id}':
+    get:
+      tags:
+        - Organization
+      summary: Get entity by id
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withUsers
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+    patch:
+      tags:
+        - Organization
+      summary: Update entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+    delete:
+      tags:
+        - Organization
+      summary: Delete entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/organizations/{id}/users/add':
+    put:
+      tags:
+        - Organization
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUserInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUserInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUserInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/organizations/{id}/users/remove':
+    put:
+      tags:
+        - Organization
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUserInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUserInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUserInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/permissions:
+    get:
+      tags:
+        - Permission
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionDictionaryIEnumerableCloudedOkResult'
+    post:
+      tags:
+        - Permission
+      summary: Create entity
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+  '/v1/permissions/by_identity/{identity}':
+    get:
+      tags:
+        - Permission
+      summary: Get permission by identity
+      parameters:
+        - name: identity
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/permissions/{id}':
+    get:
+      tags:
+        - Permission
+      summary: Get entity by id
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+    patch:
+      tags:
+        - Permission
+      summary: Update entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+    delete:
+      tags:
+        - Permission
+      summary: Delete entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/roles:
+    get:
+      tags:
+        - Role
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDictionaryIEnumerableCloudedOkResult'
+    post:
+      tags:
+        - Role
+      summary: Create entity
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDictionaryCloudedOkResult'
+  /v1/roles/paginated:
+    get:
+      tags:
+        - Role
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDictionaryPaginatedCloudedOkResult'
+  '/v1/roles/by_identity/{identity}':
+    get:
+      tags:
+        - Role
+      summary: ''
+      parameters:
+        - name: identity
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withPermissions
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDictionaryCloudedOkResult'
+  '/v1/roles/{id}':
+    get:
+      tags:
+        - Role
+      summary: Get entity by id
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withPermissions
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDictionaryCloudedOkResult'
+    patch:
+      tags:
+        - Role
+      summary: Update entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleDictionaryCloudedOkResult'
+    delete:
+      tags:
+        - Role
+      summary: Delete entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/roles/{id}/permissions/add':
+    put:
+      tags:
+        - Role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/roles/{id}/permissions/remove':
+    put:
+      tags:
+        - Role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/RolePermissionInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/social/facebook/login-url:
+    get:
+      tags:
+        - Social
+      summary: Start Facebook login
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/social/facebook/me/{code}':
+    get:
+      tags:
+        - Social
+      summary: Get Facebook user profile data
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/social/facebook/token:
+    post:
+      tags:
+        - Social
+      summary: Get token by Facebook login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/social/google/login-url:
+    get:
+      tags:
+        - Social
+      summary: Start Google login
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/social/google/me/{code}':
+    get:
+      tags:
+        - Social
+      summary: Get Google user profile data
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/social/google/token:
+    post:
+      tags:
+        - Social
+      summary: Get token by Google login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/social/apple/login-url:
+    get:
+      tags:
+        - Social
+      summary: Start Apple login
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/StringCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/social/apple/me/{code}':
+    get:
+      tags:
+        - Social
+      summary: Get Apple user profile data
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/social/apple/token:
+    post:
+      tags:
+        - Social
+      summary: Get token by Apple login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/OAuthSocialInput'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/OAuthOutputCloudedOkResult'
+        '501':
+          description: Not Implemented
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+            text/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  /v1/users:
+    get:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: roleIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: permissionIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: organizationId
+          in: query
+          description: ''
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryIEnumerableCloudedOkResult'
+    post:
+      tags:
+        - User
+      summary: Create entity
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryCloudedOkResult'
+  /v1/users/paginated:
+    get:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: search
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: roleIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: permissionIds
+          in: query
+          description: ''
+          schema:
+            type: array
+            items:
+              type: string
+        - name: organizationId
+          in: query
+          description: ''
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          description: ''
+          schema:
+            type: integer
+            format: int32
+            default: 50
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryPaginatedCloudedOkResult'
+  '/v1/users/by_identity/{identity}':
+    get:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: identity
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withRoles
+          in: query
+          description: ''
+          schema:
+            type: boolean
+        - name: withPermissions
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryCloudedOkResult'
+  '/v1/users/{id}':
+    get:
+      tags:
+        - User
+      summary: Get entity by id
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: withRoles
+          in: query
+          description: ''
+          schema:
+            type: boolean
+        - name: withPermissions
+          in: query
+          description: ''
+          schema:
+            type: boolean
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StringObjectDictionaryCloudedOkResult'
+    patch:
+      tags:
+        - User
+      summary: Update entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          text/json:
+            schema:
+              type: object
+              additionalProperties: { }
+          application/*+json:
+            schema:
+              type: object
+              additionalProperties: { }
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDictionaryCloudedOkResult'
+    delete:
+      tags:
+        - User
+      summary: Delete entity
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/users/{id}/roles/add':
+    put:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UserRoleInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/users/{id}/roles/remove':
+    put:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UserRoleInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/users/{id}/permissions/add':
+    put:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+  '/v1/users/{id}/permissions/remove':
+    put:
+      tags:
+        - User
+      summary: ''
+      parameters:
+        - name: id
+          in: path
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: ''
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionInput'
+          text/json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionInput'
+          application/*+json:
+            schema:
+              $ref: '#/components/schemas/UserPermissionInput'
+        required: true
+      responses:
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CloudedExceptionResult'
+components:
+  schemas:
+    CloudedExceptionResult:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExceptionData'
+          nullable: true
+      additionalProperties: false
+    CloudedOkResult:
+      type: object
+      additionalProperties: false
+    DomainDictionaryCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    DomainDictionaryIEnumerableCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    DomainDictionaryPaginated:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          description: Paginated data items
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+    DomainDictionaryPaginatedCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/DomainDictionaryPaginated'
+      additionalProperties: false
+    DomainMachineInput:
+      type: object
+      properties:
+        machineIds:
+          type: array
+          items: { }
+      additionalProperties: false
+    ExceptionData:
+      required:
+        - error
+        - i18N
+        - type
+      type: object
+      properties:
+        i18N:
+          type: string
+        error:
+          type: string
+        type:
+          type: string
+      additionalProperties: false
+    ForgotPasswordInput:
+      required:
+        - identity
+      type: object
+      properties:
+        identity:
+          minLength: 1
+          type: string
+          description: Identity of user
+      additionalProperties: false
+    MachineDictionaryCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    MachineDictionaryIEnumerableCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    MachineDictionaryPaginated:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          description: Paginated data items
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+    MachineDictionaryPaginatedCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/MachineDictionaryPaginated'
+      additionalProperties: false
+    MachineDomainInput:
+      type: object
+      properties:
+        domainIds:
+          type: array
+          items: { }
+      additionalProperties: false
+    MachinePermissionInput:
+      type: object
+      properties:
+        permissionIds:
+          type: array
+          items: { }
+      additionalProperties: false
+    MachineRoleInput:
+      type: object
+      properties:
+        roleIds:
+          type: array
+          items: { }
+      additionalProperties: false
+    OAuthAccessTokenInput:
+      required:
+        - accessToken
+      type: object
+      properties:
+        accessToken:
+          minLength: 1
+          type: string
+          description: Access token
+      additionalProperties: false
+    OAuthInput:
+      required:
+        - apiKey
+        - identity
+        - password
+        - secretKey
+      type: object
+      properties:
+        apiKey:
+          minLength: 1
+          type: string
+          description: Machine api key from which the request has been called.
+        secretKey:
+          minLength: 1
+          type: string
+          description: Machine secret key from which the request has been called.
+        identity:
+          minLength: 1
+          type: string
+          description: Authentication entity identity (email/nickname)
+        password:
+          minLength: 1
+          type: string
+          description: Authentication entity password
+      additionalProperties: false
+    OAuthOutput:
+      required:
+        - accessToken
+        - refreshToken
+      type: object
+      properties:
+        accessToken:
+          $ref: '#/components/schemas/TokenOutput'
+        refreshToken:
+          $ref: '#/components/schemas/TokenOutput'
+      additionalProperties: false
+    OAuthOutputCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/OAuthOutput'
+      additionalProperties: false
+    OAuthSocialInput:
+      required:
+        - apiKey
+        - code
+        - secretKey
+        - userId
+      type: object
+      properties:
+        apiKey:
+          minLength: 1
+          type: string
+          description: Machine api key from which the request has been called.
+        secretKey:
+          minLength: 1
+          type: string
+          description: Machine secret key from which the request has been called.
+        code:
+          minLength: 1
+          type: string
+          description: Social access code
+        userId:
+          description: ''
+      additionalProperties: false
+    OAuthTokenMachineInput:
+      required:
+        - apiKey
+        - secretKey
+      type: object
+      properties:
+        apiKey:
+          minLength: 1
+          type: string
+          description: API key of machine/client
+        secretKey:
+          minLength: 1
+          type: string
+          description: API secret key of machine/client
+      additionalProperties: false
+    OAuthTokenRefreshInput:
+      required:
+        - accessToken
+        - apiKey
+        - refreshToken
+        - secretKey
+      type: object
+      properties:
+        apiKey:
+          minLength: 1
+          type: string
+          description: Machine api key from which the request has been called.
+        secretKey:
+          minLength: 1
+          type: string
+          description: Machine secret key from which the request has been called.
+        accessToken:
+          minLength: 1
+          type: string
+          description: Access token
+        refreshToken:
+          minLength: 1
+          type: string
+          description: Refresh token
+      additionalProperties: false
+    OAuthTokenRevokeInput:
+      required:
+        - allOfUser
+        - refreshToken
+      type: object
+      properties:
+        refreshToken:
+          minLength: 1
+          type: string
+          description: The refresh token
+        allOfUser:
+          type: boolean
+          description: All tokens invalidation toggle
+          default: false
+      additionalProperties: false
+    OAuthValidateOutput:
+      required:
+        - expiresAt
+        - identities
+        - machineId
+        - userId
+      type: object
+      properties:
+        identities:
+          type: array
+          items: { }
+          description: Validated token identities
+        userId:
+          description: ''
+          nullable: true
+        machineId:
+          description: ''
+          nullable: true
+        expiresAt:
+          type: string
+          description: Validated token expires at in UTC
+          format: date-time
+      additionalProperties: false
+    OAuthValidateOutputCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/OAuthValidateOutput'
+      additionalProperties: false
+    OrganizationUserInput:
+      type: object
+      properties:
+        userIds:
+          type: array
+          items: { }
+      additionalProperties: false
+    PageInfo:
+      type: object
+      properties:
+        pageIndex:
+          type: integer
+          format: int64
+        pageSize:
+          type: integer
+          format: int64
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int64
+      additionalProperties: false
+    PasswordResetInput:
+      required:
+        - password
+        - resetToken
+      type: object
+      properties:
+        resetToken:
+          minLength: 1
+          type: string
+          description: Reset token received with email
+        password:
+          minLength: 1
+          type: string
+          description: New password
+      additionalProperties: false
+    PermissionDictionaryIEnumerableCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    RoleDictionaryCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    RoleDictionaryIEnumerableCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    RoleDictionaryPaginated:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          description: Paginated data items
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+    RoleDictionaryPaginatedCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/RoleDictionaryPaginated'
+      additionalProperties: false
+    RolePermissionInput:
+      type: object
+      properties:
+        permissionIds:
+          type: array
+          items: { }
+      additionalProperties: false
+    StringCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: string
+          nullable: true
+      additionalProperties: false
+    StringIEnumerableCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: string
+          nullable: true
+      additionalProperties: false
+    StringObjectDictionaryCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties:
+            nullable: true
+          nullable: true
+      additionalProperties: false
+    TokenOutput:
+      required:
+        - expires
+        - token
+      type: object
+      properties:
+        token:
+          type: string
+        expires:
+          type: string
+          format: date-time
+      additionalProperties: false
+    TokenOutputCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/TokenOutput'
+      additionalProperties: false
+    UserDictionaryCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    UserDictionaryIEnumerableCloudedOkResult:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          nullable: true
+      additionalProperties: false
+    UserDictionaryPaginated:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: { }
+          description: Paginated data items
+        pageInfo:
+          $ref: '#/components/schemas/PageInfo'
+      additionalProperties: false
+    UserDictionaryPaginatedCloudedOkResult:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UserDictionaryPaginated'
+      additionalProperties: false
+    UserPermissionInput:
+      type: object
+      properties:
+        permissionIds:
+          type: array
+          items: { }
+        organizationId:
+          nullable: true
+      additionalProperties: false
+    UserRoleInput:
+      type: object
+      properties:
+        roleIds:
+          type: array
+          items: { }
+        organizationId:
+          nullable: true
+      additionalProperties: false
+  securitySchemes:
+    CloudedKey:
+      type: apiKey
+      description: Enter the `X-CLOUDED-KEY`
+      name: X-CLOUDED-KEY
+      in: header
+    MachineKey:
+      type: apiKey
+      description: 'Enter the `X-CLOUDED-MACHINE-KEY` base64 string from Machine api and secret key as following: `[API_KEY]:[SECRET_KEY]`'
+      name: X-CLOUDED-MACHINE-KEY
+      in: header
+    Bearer:
+      type: apiKey
+      description: 'Enter the Bearer Authorization string as following: `Bearer [TOKEN]`'
+      name: Authorization
+      in: header
+security:
+  - CloudedKey: [ ]
+  - MachineKey: [ ]
+  - Bearer: [ ]

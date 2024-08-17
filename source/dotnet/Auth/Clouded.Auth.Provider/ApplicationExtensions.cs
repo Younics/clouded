@@ -40,6 +40,6 @@ public static class ApplicationExtensions
         ISwaggerProvider sw = provider.GetRequiredService<ISwaggerProvider>();
         OpenApiDocument doc = sw.GetSwagger("v1", null, "/");
         string swaggerFile = doc.SerializeAsYaml(Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_0);
-        File.WriteAllText("swaggerfile.yml", swaggerFile);
+        File.WriteAllText("auth-swaggerfile.yml", swaggerFile);
     }
 }
