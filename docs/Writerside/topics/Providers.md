@@ -7,7 +7,7 @@ provider is in development to further enhance integration and communication.
 
 Intro
 
-Docs
+[Docs](https://younics.github.io/clouded/auth)
 
 ## Admin provider
 
