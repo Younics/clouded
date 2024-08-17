@@ -55,7 +55,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}/auth
+      url: ${{ steps.deployment.outputs.page_url }}auth
     needs: [build, test]
     runs-on: ubuntu-latest
     steps:
