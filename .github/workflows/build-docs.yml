@@ -122,11 +122,6 @@ jobs:
         with:
           path: dir
 
-      - name: Package and upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dir/auth
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
