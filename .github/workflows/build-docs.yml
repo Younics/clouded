@@ -12,7 +12,7 @@ permissions:
 env:
   INSTANCE: 'Writerside/in'
   ARTIFACT: 'webHelpIN2-all.zip'
-  INSTANCE_ATUH: 'Writerside/auth'
+  INSTANCE_AUTH: 'Writerside/auth'
   ARTIFACT_AUTH: 'webHelpAUTH2-all.zip'
   DOCKER_VERSION: '241.18775'
 
@@ -65,7 +65,7 @@ jobs:
       - name: Build General docs using Writerside Docker builder
         uses: JetBrains/writerside-github-action@v4
         with:
-          instance: ${{ env.INSTANCE_ATUH }}
+          instance: ${{ env.INSTANCE_AUTH }}
           artifact: ${{ env.ARTIFACT_AUTH }}
           docker-version: ${{ env.DOCKER_VERSION }}
 
@@ -75,7 +75,7 @@ jobs:
           name: docs-auth
           path: |
             artifacts/${{ env.ARTIFACT_AUTH }}
-            artifacts/auth-report.json
+            artifacts/report.json
           retention-days: 7
   test-auth:
     needs: build-auth
@@ -90,7 +90,7 @@ jobs:
       - name: Test documentation
         uses: JetBrains/writerside-checker-action@v1
         with:
-          instance: ${{ env.INSTANCE_ATUH }}
+          instance: ${{ env.INSTANCE_AUTH }}
   deploy:
     environment:
       name: github-pages
