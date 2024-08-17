@@ -107,7 +107,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docs-auth
-          path: artifacts/auth
 
       - name: Unzip artifact
         run: unzip -O UTF-8 -qq '${{ env.ARTIFACT }}' -d dir
