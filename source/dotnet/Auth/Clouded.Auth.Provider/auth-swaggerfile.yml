@@ -14,7 +14,7 @@ paths:
     get:
       tags:
         - Domain
-      summary: ''
+      summary: Get all entities
       parameters:
         - name: search
           in: query
@@ -71,7 +71,7 @@ paths:
     get:
       tags:
         - Domain
-      summary: ''
+      summary: Get all entities paginated
       parameters:
         - name: search
           in: query
@@ -109,7 +109,7 @@ paths:
     get:
       tags:
         - Domain
-      summary: ''
+      summary: Get entity by identity
       parameters:
         - name: identity
           in: path
@@ -291,7 +291,7 @@ paths:
     get:
       tags:
         - Machine
-      summary: ''
+      summary: Get all entities
       parameters:
         - name: search
           in: query
@@ -362,7 +362,7 @@ paths:
     get:
       tags:
         - Machine
-      summary: ''
+      summary: Get all entities paginated
       parameters:
         - name: search
           in: query
@@ -414,7 +414,7 @@ paths:
     get:
       tags:
         - Machine
-      summary: ''
+      summary: Get entity by identity
       parameters:
         - name: identity
           in: path
@@ -978,7 +978,7 @@ paths:
     get:
       tags:
         - Organization
-      summary: ''
+      summary: Get all entities
       parameters:
         - name: search
           in: query
@@ -1035,7 +1035,7 @@ paths:
     get:
       tags:
         - Organization
-      summary: ''
+      summary: Get all entities paginated
       parameters:
         - name: search
           in: query
@@ -1073,7 +1073,7 @@ paths:
     get:
       tags:
         - Organization
-      summary: ''
+      summary: Get entity by identity
       parameters:
         - name: identity
           in: path
@@ -1191,7 +1191,7 @@ paths:
     put:
       tags:
         - Organization
-      summary: ''
+      summary: Add users to entity with id
       parameters:
         - name: id
           in: path
@@ -1223,7 +1223,7 @@ paths:
     put:
       tags:
         - Organization
-      summary: ''
+      summary: Remove users to entity with id
       parameters:
         - name: id
           in: path
@@ -1255,7 +1255,7 @@ paths:
     get:
       tags:
         - Permission
-      summary: ''
+      summary: Get all entities
       parameters:
         - name: search
           in: query
@@ -1414,7 +1414,7 @@ paths:
     get:
       tags:
         - Role
-      summary: ''
+      summary: Get all entities
       parameters:
         - name: search
           in: query
@@ -1471,7 +1471,7 @@ paths:
     get:
       tags:
         - Role
-      summary: ''
+      summary: Get all entities paginated
       parameters:
         - name: search
           in: query
@@ -1509,7 +1509,7 @@ paths:
     get:
       tags:
         - Role
-      summary: ''
+      summary: Get entity by identity
       parameters:
         - name: identity
           in: path
@@ -2045,7 +2045,7 @@ paths:
     get:
       tags:
         - User
-      summary: ''
+      summary: Get all entities
       parameters:
         - name: search
           in: query
@@ -2121,7 +2121,7 @@ paths:
     get:
       tags:
         - User
-      summary: ''
+      summary: Get all entities paginated
       parameters:
         - name: search
           in: query
@@ -2178,7 +2178,7 @@ paths:
     get:
       tags:
         - User
-      summary: ''
+      summary: Get entity by identity
       parameters:
         - name: identity
           in: path
@@ -2306,7 +2306,7 @@ paths:
     put:
       tags:
         - User
-      summary: ''
+      summary: Add roles to entity with id
       parameters:
         - name: id
           in: path
@@ -2338,7 +2338,7 @@ paths:
     put:
       tags:
         - User
-      summary: ''
+      summary: Remove roles from entity with id
       parameters:
         - name: id
           in: path
@@ -2370,7 +2370,7 @@ paths:
     put:
       tags:
         - User
-      summary: ''
+      summary: Add permissions to entity with id
       parameters:
         - name: id
           in: path
@@ -2402,7 +2402,7 @@ paths:
     put:
       tags:
         - User
-      summary: ''
+      summary: Remove permissions from entity with id
       parameters:
         - name: id
           in: path

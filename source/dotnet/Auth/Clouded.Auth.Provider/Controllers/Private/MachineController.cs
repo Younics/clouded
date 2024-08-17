@@ -20,7 +20,7 @@ public class MachineController(IMachineService machineService) : BaseController
     private const string EntityName = "Machine";
 
     /// <summary>
-    ///
+    /// Get all entities
     /// </summary>
     /// <param name="search"></param>
     /// <param name="roleIds"></param>
@@ -39,7 +39,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get all entities paginated 
     /// </summary>
     /// <param name="search"></param>
     /// <param name="roleIds"></param>
@@ -62,7 +62,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get entity by identity
     /// </summary>
     /// <param name="identity"></param>
     /// <param name="withRoles"></param>

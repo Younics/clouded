@@ -20,7 +20,7 @@ public class DomainController(IDomainService domainService) : BaseController
     private const string EntityName = "Domain";
 
     /// <summary>
-    ///
+    /// Get all entities
     /// </summary>
     /// <param name="search"></param>
     /// <returns><see cref="IEnumerable{DomainDictionary}"/></returns>
@@ -33,7 +33,7 @@ public class DomainController(IDomainService domainService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get all entities paginated 
     /// </summary>
     /// <param name="search"></param>
     /// <param name="page"></param>
@@ -52,7 +52,7 @@ public class DomainController(IDomainService domainService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get entity by identity
     /// </summary>
     /// <param name="identity"></param>
     /// <param name="withMachines"></param>

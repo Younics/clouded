@@ -20,7 +20,7 @@ public class UserController(IUserService userService) : BaseController
     private const string EntityName = "User";
 
     /// <summary>
-    ///
+    /// Get all entities
     /// </summary>
     /// <param name="search"></param>
     /// <param name="roleIds"></param>
@@ -41,7 +41,7 @@ public class UserController(IUserService userService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get all entities paginated 
     /// </summary>
     /// <param name="search"></param>
     /// <param name="roleIds"></param>
@@ -68,7 +68,7 @@ public class UserController(IUserService userService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get entity by identity
     /// </summary>
     /// <param name="identity"></param>
     /// <param name="withRoles"></param>
@@ -159,7 +159,7 @@ public class UserController(IUserService userService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Add roles to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -177,7 +177,7 @@ public class UserController(IUserService userService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Remove roles from entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -195,7 +195,7 @@ public class UserController(IUserService userService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Add permissions to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -213,7 +213,7 @@ public class UserController(IUserService userService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Remove permissions from entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>

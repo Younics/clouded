@@ -20,7 +20,7 @@ public class RoleController(IRoleService roleService) : BaseController
     private const string EntityName = "Role";
 
     /// <summary>
-    ///
+    /// Get all entities
     /// </summary>
     /// <param name="search"></param>
     /// <returns><see cref="IEnumerable{RoleDictionary}"/></returns>
@@ -33,7 +33,7 @@ public class RoleController(IRoleService roleService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get all entities paginated 
     /// </summary>
     /// <param name="search"></param>
     /// <param name="page"></param>
@@ -52,7 +52,7 @@ public class RoleController(IRoleService roleService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Get entity by identity
     /// </summary>
     /// <param name="identity"></param>
     /// <param name="withPermissions"></param>

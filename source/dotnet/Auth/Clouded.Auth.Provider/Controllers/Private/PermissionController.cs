@@ -17,7 +17,7 @@ public class PermissionController(IPermissionDataSource permissionDataSource) : 
     private const string EntityName = "Permission";
 
     /// <summary>
-    ///
+    /// Get all entities
     /// </summary>
     /// <param name="search"></param>
     /// <returns><see cref="IEnumerable{PermissionDictionary}"/></returns>

@@ -20,7 +20,7 @@ public class OrganizationController(IOrganizationService organizationService) : 
     private const string EntityName = "Organization";
 
     /// <summary>
-    ///
+    /// Get all entities
     /// </summary>
     /// <param name="search"></param>
     /// <returns><see cref="IEnumerable{OrganizationDictionary}"/></returns>
@@ -33,7 +33,7 @@ public class OrganizationController(IOrganizationService organizationService) : 
     }
 
     /// <summary>
-    ///
+    /// Get all entities paginated 
     /// </summary>
     /// <param name="search"></param>
     /// <param name="page"></param>
@@ -52,7 +52,7 @@ public class OrganizationController(IOrganizationService organizationService) : 
     }
 
     /// <summary>
-    ///
+    /// Get entity by identity
     /// </summary>
     /// <param name="identity"></param>
     /// <param name="withUsers"></param>
@@ -139,7 +139,7 @@ public class OrganizationController(IOrganizationService organizationService) : 
     }
 
     /// <summary>
-    ///
+    /// Add users to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -157,7 +157,7 @@ public class OrganizationController(IOrganizationService organizationService) : 
     }
 
     /// <summary>
-    ///
+    /// Remove users to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
