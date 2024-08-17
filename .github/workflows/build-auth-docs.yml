@@ -1,4 +1,4 @@
-name: Build documentation
+name: Build Auth documentation
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   pages: write
 
 env:
-  INSTANCE: 'Writerside/in'
-  ARTIFACT: 'webHelpIN2-all.zip'
+  INSTANCE: 'Writerside/auth'
+  ARTIFACT: 'webHelpAUTH2-all.zip'
   DOCKER_VERSION: '241.18775'
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build docs using Writerside Docker builder
+      - name: Build AUTH docs using Writerside Docker builder
         uses: JetBrains/writerside-github-action@v4
         with:
           instance: ${{ env.INSTANCE }}
