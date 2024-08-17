@@ -74,8 +74,8 @@ jobs:
         with:
           name: docs-auth
           path: |
-            artifacts/auth/${{ env.ARTIFACT_AUTH }}
-            artifacts/auth/report.json
+            artifacts/${{ env.ARTIFACT_AUTH }}
+            artifacts/auth-report.json
           retention-days: 7
   test-auth:
     needs: build-auth
@@ -85,7 +85,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: docs-auth
-          path: artifacts/auth
+          path: artifacts
 
       - name: Test documentation
         uses: JetBrains/writerside-checker-action@v1
