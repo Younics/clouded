@@ -162,7 +162,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Add roles to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -180,7 +180,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Remove roles to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -198,7 +198,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Add permissions to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -216,7 +216,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Remove permissions to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -234,7 +234,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Add domains to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>
@@ -252,7 +252,7 @@ public class MachineController(IMachineService machineService) : BaseController
     }
 
     /// <summary>
-    ///
+    /// Remove entities to entity with id
     /// </summary>
     /// <param name="id"></param>
     /// <param name="input"></param>

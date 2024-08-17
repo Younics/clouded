@@ -552,7 +552,7 @@ paths:
     put:
       tags:
         - Machine
-      summary: ''
+      summary: Add roles to entity with id
       parameters:
         - name: id
           in: path
@@ -584,7 +584,7 @@ paths:
     put:
       tags:
         - Machine
-      summary: ''
+      summary: Remove roles to entity with id
       parameters:
         - name: id
           in: path
@@ -616,7 +616,7 @@ paths:
     put:
       tags:
         - Machine
-      summary: ''
+      summary: Add permissions to entity with id
       parameters:
         - name: id
           in: path
@@ -648,7 +648,7 @@ paths:
     put:
       tags:
         - Machine
-      summary: ''
+      summary: Remove permissions to entity with id
       parameters:
         - name: id
           in: path
@@ -680,7 +680,7 @@ paths:
     put:
       tags:
         - Machine
-      summary: ''
+      summary: Add domains to entity with id
       parameters:
         - name: id
           in: path
@@ -712,7 +712,7 @@ paths:
     put:
       tags:
         - Machine
-      summary: ''
+      summary: Remove entities to entity with id
       parameters:
         - name: id
           in: path
