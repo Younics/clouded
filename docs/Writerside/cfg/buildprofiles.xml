@@ -8,15 +8,19 @@
         <variables>
             <noindex-content>true</noindex-content>
         </variables>
+        <sitemap priority="0.35" change-frequency="monthly"/>
     </build-profile>
     <build-profile instance="auth">
         <variables>
             <noindex-content>true</noindex-content>
         </variables>
+        <sitemap priority="0.35" change-frequency="monthly"/>
     </build-profile>
 
     <footer>
         <copyright>2024 Younics s.r.o.</copyright>
+        <link href="https://younics.github.io/clouded">Clouded</link>
+        <link href="https://younics.github.io/clouded/auth">Clouded Auth</link>
         <link href="https://github.com/Younics/clouded/blob/main/CONTRIBUTING.md">Contribution</link>
         <link href="https://younics.com">Younics</link>
     </footer>

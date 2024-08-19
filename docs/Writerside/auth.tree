@@ -3,7 +3,7 @@
         SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
 
 <instance-profile id="auth"
-                 name="Auth Provider"
+                 name="Auth Provider | Clouded"
                  start-page="auth-provider.md">
 
     <toc-element topic="auth-provider.md"/>
