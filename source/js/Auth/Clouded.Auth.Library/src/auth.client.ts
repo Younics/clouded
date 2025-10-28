@@ -10,7 +10,7 @@ import { TokenRevokeInput } from '@/dto/input/token-revoke.input';
 import { ValidateOutput } from '@/dto/output/validate.output';
 import { AccessTokenInput } from '@/dto/input/access-token.input';
 import { OauthSocialInput } from '@/dto/input/oauth-social.input';
-import {OauthParamsInput} from '@/dto/input/oauth-params.input';
+import { OauthParamsInput } from '@/dto/input/oauth-params.input';
 
 export class AuthClient extends BaseClient {
   public readonly management: AuthManagementClient;
