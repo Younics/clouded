@@ -10,6 +10,7 @@ import { TokenRevokeInput } from '@/dto/input/token-revoke.input';
 import { ValidateOutput } from '@/dto/output/validate.output';
 import { AccessTokenInput } from '@/dto/input/access-token.input';
 import { OauthSocialInput } from '@/dto/input/oauth-social.input';
+import {OauthParamsInput} from '@/dto/input/oauth-params.input';
 
 export class AuthClient extends BaseClient {
   public readonly management: AuthManagementClient;
@@ -38,9 +39,9 @@ export class AuthClient extends BaseClient {
       .then((response) => response.data as CloudedOutput<OAuthOutput>);
   }
 
-  public facebookLoginUrl(): CloudedPromise<string> {
+  public facebookLoginUrl(input: OauthParamsInput): CloudedPromise<string> {
     return this.httpClient
-      .get('/v1/social/facebook/login-url')
+      .get(`/v1/social/facebook/login-url${input.state ? `?state=${input.state}` : ''}`)
       .then((response) => response as CloudedOutput<string>);
   }
 
@@ -56,9 +57,9 @@ export class AuthClient extends BaseClient {
       .then((response) => response.data as CloudedOutput<OAuthOutput>);
   }
 
-  public googleLoginUrl(): CloudedPromise<string> {
+  public googleLoginUrl(input: OauthParamsInput): CloudedPromise<string> {
     return this.httpClient
-      .get('/v1/social/google/login-url')
+      .get(`/v1/social/google/login-url${input.state ? `?state=${input.state}` : ''}`)
       .then((response) => response as CloudedOutput<string>);
   }
 
