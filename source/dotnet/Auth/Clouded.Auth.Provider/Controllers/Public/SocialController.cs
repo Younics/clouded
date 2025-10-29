@@ -66,7 +66,8 @@ public class SocialController(IAuthService authService, ApplicationOptions optio
     [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult FacebookLoginBacklink(
         [Optional] [FromQuery] string? error,
-        [Optional] [FromQuery] string? code
+        [Optional] [FromQuery] string? code,
+        [Optional] [FromQuery] string? state
     )
     {
         if (_socialOptions.Facebook == null)
@@ -78,10 +79,20 @@ public class SocialController(IAuthService authService, ApplicationOptions optio
 
         if (error != null || code == null)
         {
-            return RedirectPreserveMethod(_socialOptions.Facebook.DeniedRedirectUrl);
+            var deniedUrl = _socialOptions.Facebook.DeniedRedirectUrl;
+            if (!string.IsNullOrEmpty(state))
+            {
+                deniedUrl += deniedUrl.Contains('?') ? $"&state={state}" : $"?state={state}";
+            }
+            return RedirectPreserveMethod(deniedUrl);
         }
 
-        return RedirectPreserveMethod($"{_socialOptions.Facebook.RedirectUrl}?access_code={code}");
+        var redirectUrl = $"{_socialOptions.Facebook.RedirectUrl}?access_code={code}";
+        if (!string.IsNullOrEmpty(state))
+        {
+            redirectUrl += $"&state={state}";
+        }
+        return RedirectPreserveMethod(redirectUrl);
     }
 
     /// <summary>
@@ -132,7 +143,8 @@ public class SocialController(IAuthService authService, ApplicationOptions optio
     [ApiExplorerSettings(IgnoreApi = true)]
     public IActionResult GoogleLoginBacklink(
         [Optional] [FromQuery] string? error,
-        [Optional] [FromQuery] string? code
+        [Optional] [FromQuery] string? code,
+        [Optional] [FromQuery] string? state
     )
     {
         if (_socialOptions.Google == null)
@@ -144,10 +156,20 @@ public class SocialController(IAuthService authService, ApplicationOptions optio
 
         if (error != null || code == null)
         {
-            return RedirectPreserveMethod(_socialOptions.Google.DeniedRedirectUrl);
+            var deniedUrl = _socialOptions.Google.DeniedRedirectUrl;
+            if (!string.IsNullOrEmpty(state))
+            {
+                deniedUrl += deniedUrl.Contains('?') ? $"&state={state}" : $"?state={state}";
+            }
+            return RedirectPreserveMethod(deniedUrl);
         }
 
-        return RedirectPreserveMethod($"{_socialOptions.Google.RedirectUrl}?access_code={code}");
+        var redirectUrl = $"{_socialOptions.Google.RedirectUrl}?access_code={code}";
+        if (!string.IsNullOrEmpty(state))
+        {
+            redirectUrl += $"&state={state}";
+        }
+        return RedirectPreserveMethod(redirectUrl);
     }
 
     /// <summary>
