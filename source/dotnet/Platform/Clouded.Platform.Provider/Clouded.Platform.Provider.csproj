@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Docker.DotNet" Version="3.125.15" />
-    <PackageReference Include="KubernetesClient" Version="13.0.37" />
+    <PackageReference Include="KubernetesClient" Version="17.0.14" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.4" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
